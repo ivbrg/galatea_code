@@ -1,0 +1,7 @@
+{
+    "port": "COM4",
+    "configuration": "cpu=atmega2560",
+    "board": "arduino:avr:mega",
+    "programmer": "avrisp",
+    "sketch": "galatea_v1.3.ino"
+}
