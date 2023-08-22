@@ -1,16 +1,13 @@
 
 /*/ ============== VP адреса переменных в DWIN ================
   ***коды страниц vp:***
-  10 01 | 01 = режим;
-  10 01 | 01 = загрузка;
-  10 01 | 02 = разгрузка;
-  10 01 | 03 = мойка;
-  10 01 | 04 = калибровка;  
+  10 01 | 10 = загрузка;
+  10 01 | 11 = разгрузка;
+  10 01 | 12 = мойка;
 
   *** предупреждения ***
   
   11 00 | i
-
 
   11 03 | temp1
   11 04 | temp2
@@ -65,6 +62,10 @@
 
   20 02 | 00 = тэны вкл/выкл
 
+  20 03 | 01 = вкл/выкл загрузка
+  20 04 | 01 = вкл/выкл разгрузка
+  20 05 | 01 = вкл/выкл мойка
+
   !!!!!!!!!!!!!! 20 03 | 00 = нож вкл/выкл   - удалены с экрана
   !!!!!!!!!!!!!! 20 04 | 00 = круг вкл/выкл  - удалены с экрана
   !!!!!!!!!!!!!! 20 05 | 00 = пресс вкл/выкл - удалены с экрана
@@ -82,7 +83,7 @@
   *** кнопки калибровки ***
   21 00 | 01 = начать калибровку
   
-  21 01 | 01 = включить все
+  21 01 | 01 = включить все/ 00 = выключить всё
   
   21 02 | 01 = объём
   21 03 | 01 = круг
@@ -92,18 +93,18 @@
   21 07 | 01 = ТЭНы
 
   *** адреса ручного включения цилиндров
-  25 00 | 35
-  25 01 | 34
-  25 02 | 33
+  25 00 | 35    // голова сливок
+  25 01 | 34    // голова страчателлы
+  25 02 | 33    
   25 03 | 32
-  25 04 | 31
-  25 05 | 30
-  25 06 | 39
-  25 07 | 29
-  25 08 | 28
-  25 09 | 27
-  25 10 | 26
-  25 11 | 25
+  25 04 | 31    // пресс-форсунка
+  25 05 | 30    // цилиндр страчателлы
+  25 06 | 39    // цилиндр сливок 
+  25 07 | 29    // разгрузка
+  25 08 | 28    // редуктор
+  25 09 | 27    // левый пресс
+  25 10 | 26    // правый пресс
+  25 11 | 25    // нож
 
   *** адреса датчиков цилиндров 
   26 00 | A0  ss1
@@ -128,11 +129,14 @@
   30 08 - время пайки с экрана (float, 4 байта)
   30 0B - время пайки на экран (float, 4 байта)
   30 10 - обороты (byte)
-  30 12 - масса (float, 4 байта)
-  30 14 - % сливок 
+  30 12 - масса (int)
+  30 14 - % сливок (int)
   30 16 - температура левого тэна
   30 1A - температура правого тэна
-  30 20 - скорость
+  30 20 - циклы загрузки страчателлы
+  30 22 - циклы загрузки сливок
+  30 24 - циклы разгрузки страчателлы
+  30 26 - циклы разгрузки сливок
 
   50 00 - текст ошибок
 
@@ -246,67 +250,37 @@ void changePage() {  // VP10xx
   /* 
   changeSetPageBuff[] = {0X5A, 0XA5, 0X07, 0X82, 0X00, 0X84, 0X5A, 0x01, 0x00, 0x00 };
   settings page id:
-  downloading = 0410 = [0x01, 0x9A]
-  unloading = 0420 = [0x01, 0xA4]
-  washing = 0430 = [0x01, 0xAE]
-  calibration = 0440 = [0x01, 0xB8]
+  downloading = 016 = [0x00, 0x10]
+  unloading = 017 = [0x00, 0x11]
+  washing = 018 = [0x00, 0x12]
   */
   switch (inputBuf[4]) {
 
-    case 0x00:  //переход на страницу "РАБОТА"
-      if (calibrDone) {
-        changeMainPageBuff[9] = 0x1E;
-      }
-      Serial1.write(changeMainPageBuff, 10);
-      break;
-
-    case 0x01:
-      if (!calibrDone) {
-        changeMainPageBuff[9] = 0x01;
-      }
-      Serial1.write(changeMainPageBuff, 10);
-      break;
-
-    case 0x02:
-      if (!calibrDone) {
-        changeMainPageBuff[9] = 0x01;
-      }
-      Serial1.write(changeMainPageBuff, 10);
-      break;
-
-    case 0x03:  //обработка страницы настроек
-      //changeSetPageBuff[8] = 0x01;
+    case 0x00:  //переход на страницу "режимы"
       changeSetPageBuff[9] = lastSetPageID;
       Serial1.write(changeSetPageBuff, 10);
       break;
 
+
     //===== переход на страницу загрузка =====
-    case 0x04:
-      lastSetPageID = 0x9A;
+    case 0x01:
+      lastSetPageID = 0x10;
       if (DEBUG) {
-        //showBuffer(inputBuf);
+        showBuffer(inputBuf);
       }
       break;
 
     //===== переход на страницу разгрузка =====
-    case 0x05:
-      lastSetPageID = 0xA4;
+    case 0x02:
+      lastSetPageID = 0x11;
       if (DEBUG) {
-        //showBuffer(inputBuf);
+        showBuffer(inputBuf);
       }
       break;
 
     //===== переход на страницу мойка =====
-    case 0x06:
-      lastSetPageID = 0xAE;
-      if (DEBUG) {
-        //showBuffer(inputBuf);
-      }
-      break;
-
-    //===== переход на страницу калибровка =====
-    case 0x07:
-      lastSetPageID = 0xB8;
+    case 0x03:
+      lastSetPageID = 0x12;
       if (DEBUG) {
         //showBuffer(inputBuf);
       }
@@ -320,52 +294,43 @@ void changePage() {  // VP10xx
       break;
   }
 }
-// ============== страчателла/бурруту/оборот
-void pressButton() {  // VP11xx
-  switch (inputBuf[1]) {
 
-    case 0x01:  // нажали на основную кнопку
-      if (calibrDone) {
-        mainButton = inputBuf[4];
-      } else {
-        Serial1.write(popUpCalibrPageBuf, 8);
-        Serial.println("Tried to send popUpCalibrPageBuf");
-      }
-      if (DEBUG) {
-        Serial.print("Got mainButton ");
-        Serial.println(mainButton);
-      }
-      break;
+// ============== страчателла/бурруту/оборот =================
+void pressButton() {  // VP11xx 
+  switch (inputBuf[1]) {  
 
     case 0x10:  // кнопка "страчателла"
-      straciatellaButtonFlag++;
-      if (DEBUG) {
-        Serial.println("Got strachatellaButton ");
-      }
-      break;
-
-    case 0x12:                                                 // кнопка "буррата"
-      if (!straciatellaButtonFlag && !rotateDiskButtonFlag) {  //проверяем кнопки "страчателла" и "оборот"
+      if (!straciatellaButtonFlag && !rotateDiskButtonFlag) {  //проверяем кнопки "буррата" и "оборот"
         burrataButtonFlag = inputBuf[4];
         if (DEBUG) {
           Serial.print("Got burrattaButton ");
           Serial.println(burrataButtonFlag);
         }
       }
-      break;
 
-    case 0x14:                                                 // кнопка "оборот"
-      if (!straciatellaButtonFlag && !rotateDiskButtonFlag) {  //проверяем кнопки "страчателла" и "буррата"
+  
+    case 0x12:                                                 // кнопка "оборот"
+      //if (!straciatellaButtonFlag && !rotateDiskButtonFlag) {  //проверяем кнопки "страчателла" и "буррата"
         rotateDiskButtonFlag = inputBuf[4];
         if (DEBUG) {
           Serial.print("Got rotateDiskButtonFlag ");
           Serial.println(rotateDiskButtonFlag);
         }
-      }
+      
       //      if(rotateDiskButtonFlag && rotateDiskButtonCase != 0){
       //        rotateDiskButtonFlag = 0;
-      //      }
+      //}
       break;
+
+    case 0x14:  
+      straciatellaButtonFlag++;
+      if (DEBUG) {
+        Serial.println("Got strachatellaButton ");
+      }
+      break;                                               // кнопка " масса"
+      
+      break;
+
 
     case 0x20:  // кнопка начала калибровки
       makeCalibration = 1;
@@ -380,6 +345,36 @@ void pressButton() {  // VP11xx
       break;
   }
 }
+
+// обработка введённого пользователем пароля
+void readPassword() { // VP12
+  // проверка на 1488
+  if (inputBuf[3] == 0x31 && inputBuf[4] == 0x34 && inputBuf[5] == 0x38 && inputBuf[6] == 0x38) {
+    // переход на страницу с настройками
+    Serial1.write(settingsPageAddrBuf, 10);
+    // переключаем кнопку в выкл
+    mainButton = 0;
+    mainButtonBuf[7] = mainButton;
+    Serial1.write(mainButtonBuf, 8);
+
+    //проверка состояния иконки предупреждения
+    if (wrongPassBuf[7] != 0) {
+      wrongPassBuf[7] = 0;
+      Serial1.write(wrongPassBuf, 8);
+    }
+    if (DEBUG) {
+      Serial.println("GOT RIGHT PASS!");
+    }
+  } else {
+    //включение иконки с предупреждением о неправильном пароле
+    wrongPassBuf[7] = 1;
+    Serial1.write(wrongPassBuf, 8);
+    if (DEBUG) {
+      Serial.println("GOT WRONG PASS!");
+    }
+  }
+}
+
 // ============== адреса действий ==================
 void makeResponce() {  // VP20xx
   switch (inputBuf[1]) {
@@ -388,7 +383,10 @@ void makeResponce() {  // VP20xx
       break;
 
     case 0x01:  // вкл/выкл работы
-
+      if (DEBUG) {
+        Serial.print("workIsOn = ");
+        Serial.println();
+      }
       break;
 
     case 0x02:  // вкл/выкл тэна
@@ -399,6 +397,33 @@ void makeResponce() {  // VP20xx
       }
       break;
 
+    case 0x03:  // начать загрузку
+      loadStart = inputBuf[4];
+      if(loadStart){
+        Serial1.write(loadPageAddrBuf, 10);    //перешли на страницу 
+      } else {
+        Serial1.write(changeSetPageBuff, 10); //вернулись на страницу "загрузка"
+      }
+      if (DEBUG) {
+        Serial.print("start loading = ");
+        Serial.println(inputBuf[4]);
+      }
+      break;
+
+
+    case 0x04:  // начать разгрузку 
+      unloadStart = inputBuf[4];
+      if(loadStart){
+        Serial.write(loadPageAddrBuf, 10);    //перешли на страницу 
+      } else {
+        Serial1.write(changeSetPageBuff, 10); //вернулись на страницу "загрузка"
+      }
+      if (DEBUG) {
+        Serial.print("start loading = ");
+        Serial.println();
+      }
+      break;
+  /*
     case 0x03:  // вкл/выкл ножей
       knifeIsOn = inputBuf[4];
       if (DEBUG) {
@@ -450,7 +475,7 @@ void makeResponce() {  // VP20xx
         Serial.println(time);
       }
       break;
-
+  */
     default:
       showError();
       if (DEBUG) {
@@ -460,6 +485,7 @@ void makeResponce() {  // VP20xx
       break;
   }
 }
+
 // ============== режим калибровки ==================
 void calibrContor() {  // VP21xx
   switch(inputBuf[1]){
@@ -601,40 +627,40 @@ void cylinders() {  // VP25xx
   solenoidNum = inputBuf[4];
   switch (inputBuf[1]) {
     case 0x00:
-      digitalWrite(SOLENOID_SWITCH1, inputBuf[4]);
+      digitalWrite(SOLENOID_SWITCH1, inputBuf[4]);  //голова сливок
       break;
     case 0x01:
-      digitalWrite(SOLENOID_SWITCH2, inputBuf[4]);
+      digitalWrite(SOLENOID_SWITCH2, inputBuf[4]);  //голова страчателлы
       break;
     case 0x02:
-      digitalWrite(SOLENOID_SWITCH3, inputBuf[4]);
+      digitalWrite(SOLENOID_SWITCH3, inputBuf[4]);  //форсунка продукта
       break;
     case 0x03:
-      digitalWrite(SOLENOID_SWITCH4, inputBuf[4]);
+      digitalWrite(SOLENOID_SWITCH4, inputBuf[4]);  //подставка
       break;
     case 0x04:
-      digitalWrite(SOLENOID_SWITCH5, inputBuf[4]);
+      digitalWrite(SOLENOID_SWITCH5, inputBuf[4]);  //пресс-форсунка
       break;
     case 0x05:
-      digitalWrite(SOLENOID_SWITCH6, inputBuf[4]);
+      digitalWrite(SOLENOID_SWITCH6, inputBuf[4]);  //цилиндр страчателлы
       break;
     case 0x06:
-      digitalWrite(SOLENOID_SWITCH7, inputBuf[4]);
+      digitalWrite(SOLENOID_SWITCH7, inputBuf[4]);  //цилиндр сливок
       break;
     case 0x07:
-      digitalWrite(SOLENOID_SWITCH8, inputBuf[4]);
+      digitalWrite(SOLENOID_SWITCH8, inputBuf[4]);  //разгрузка
       break;
     case 0x08:
-      digitalWrite(SOLENOID_SWITCH9, inputBuf[4]);
+      digitalWrite(SOLENOID_SWITCH9, inputBuf[4]);  //редуктор
       break;
     case 0x09:
-      digitalWrite(SOLENOID_SWITCH10, inputBuf[4]);
+      digitalWrite(SOLENOID_SWITCH10, inputBuf[4]); //левый пресс
       break;
     case 0x10:
-      digitalWrite(SOLENOID_SWITCH11, inputBuf[4]);
+      digitalWrite(SOLENOID_SWITCH11, inputBuf[4]); //правый пресс
       break;
     case 0x11:
-      digitalWrite(SOLENOID_SWITCH12, inputBuf[4]);
+      digitalWrite(SOLENOID_SWITCH12, inputBuf[4]); //нож
       break;
 
     default:
@@ -648,10 +674,11 @@ void cylinders() {  // VP25xx
   }
   changeSSLight = 1;
 }
+
 // ============== адреса параметров машины ==================
 void changeVar() {  // VP30xx
   switch (inputBuf[1]) {
-    case 0x00:  //изменение температуры
+    case 0x00:  // изменение температуры
       userTempCharArray[0] = inputBuf[3];
       userTempCharArray[1] = inputBuf[4];
       userTempCharArray[2] = inputBuf[5];
@@ -671,13 +698,16 @@ void changeVar() {  // VP30xx
       }
       break;
 
-    case 0x08:  //изменение времени пайки
+    case 0x08:  // изменение времени пайки
       userTimeCharArray[0] = inputBuf[3];
       userTimeCharArray[1] = inputBuf[4];
       userTimeCharArray[2] = inputBuf[5];
       userTimeCharArray[3] = inputBuf[6];
 
       time = atof(userTimeCharArray);
+      if (time > 10.0){
+        time = 10.0;
+      }
       sendTime();
 
       if (DEBUG) {
@@ -691,12 +721,12 @@ void changeVar() {  // VP30xx
       }
       break;
 
-    case 0x10:  //изменение оборотов
+    case 0x10:  // изменение оборотов
       rotation = inputBuf[4];
       sendRotation();
       break;
 
-    case 0x12:                                   // изменение общей мессы бурраты
+    case 0x12:  // изменение общей массы бурраты
       massa = (inputBuf[3] << 8) | inputBuf[4];  // переводим два хекса с экрана в int
       if (massa > maxMassa) {                    // если значение массы на экране больше максимально допустимого значения
         massa = maxMassa;
@@ -711,6 +741,46 @@ void changeVar() {  // VP30xx
       digitalWrite(DOSE_ENABLE, LOW);
       changeMass();  // пересчет процента сливок
       sendCream();   // отправляем значение процентов сливок обратно на экран
+      break;
+
+    case 0x20:  // изменение загрузки страчателлы
+      loadStrach = (inputBuf[3] << 8) | inputBuf[4];
+      if(DEBUG){
+        Serial.print("loadStrach = ");
+        Serial.println(loadStrach);
+      }
+      break;
+
+    case 0x22:  // изменение загрузки сливок
+      loadCream = (inputBuf[3] << 8) | inputBuf[4];
+      if(DEBUG){
+        Serial.print("loadCream = ");
+        Serial.println(loadCream);
+      }
+      break;
+    
+    case 0x24:  // изменение разгрузки страчателлы
+      unloadStrach = (inputBuf[3] << 8) | inputBuf[4];
+      if(DEBUG){
+        Serial.print("unloadStrach = ");
+        Serial.println(unloadStrach);
+      }
+      break;
+
+    case 0x26:  // изменение разгрузки сливок
+      unloadCream = (inputBuf[3] << 8) | inputBuf[4];
+      if(DEBUG){
+        Serial.print("unloadCream = ");
+        Serial.println(unloadCream);
+      }
+      break;
+
+    case 0x28:  // изменение циклов мойки
+      unloadCream = (inputBuf[3] << 8) | inputBuf[4];
+      if(DEBUG){
+        Serial.print("unloadCream = ");
+        Serial.println(unloadCream);
+      }
       break;
 
     default:
@@ -815,34 +885,7 @@ void operatingMode(byte i) {
   mainButton = i;
 }
 
-// обработка введённого пользователем пароля
-void readPassword() {
-  // проверка на 1488
-  if (inputBuf[3] == 0x31 && inputBuf[4] == 0x34 && inputBuf[5] == 0x38 && inputBuf[6] == 0x38) {
-    // переход на страницу с настройками
-    Serial1.write(settingsPageAddrBuf, 10);
-    // переключаем кнопку в выкл
-    mainButton = 0;
-    mainButtonBuf[7] = mainButton;
-    Serial1.write(mainButtonBuf, 8);
 
-    //проверка состояния иконки предупреждения
-    if (wrongPassBuf[7] != 0) {
-      wrongPassBuf[7] = 0;
-      Serial1.write(wrongPassBuf, 8);
-    }
-    if (DEBUG) {
-      Serial.println("GOT RIGHT PASS!");
-    }
-  } else {
-    //включение иконки с предупреждением о неправильном пароле
-    wrongPassBuf[7] = 1;
-    Serial1.write(wrongPassBuf, 8);
-    if (DEBUG) {
-      Serial.println("GOT WRONG PASS!");
-    }
-  }
-}
 
 
 
@@ -859,6 +902,41 @@ void sendUserTemp() {
   outputUserTempBuf[9] = userTempCharArray[0];
   Serial1.write(outputUserTempBuf, 10);
 }
+
+// ============== отправка левой температуры ================
+void sendLeftTemp() {
+  byte* f_byte = reinterpret_cast<byte*>(&tempToSendL);
+  memcpy(leftTempCharArray, f_byte, 4);
+
+  outputLeftTempBuf[6] = leftTempCharArray[3];
+  outputLeftTempBuf[7] = leftTempCharArray[2];
+  outputLeftTempBuf[8] = leftTempCharArray[1];
+  outputLeftTempBuf[9] = leftTempCharArray[0];
+  Serial1.write(outputLeftTempBuf, 10);
+
+  if (DEBUG) {
+    Serial.print("leftTemp = ");
+    Serial.println(tempToSendL);
+  }
+}
+
+// ============== отправка правой температуры ================
+void sendRightTemp() {
+  byte* f_byte = reinterpret_cast<byte*>(&tempToSendR);
+  memcpy(rightTempCharArray, f_byte, 4);
+
+  outputRightTempBuf[6] = rightTempCharArray[3];
+  outputRightTempBuf[7] = rightTempCharArray[2];
+  outputRightTempBuf[8] = rightTempCharArray[1];
+  outputRightTempBuf[9] = rightTempCharArray[0];
+  Serial1.write(outputRightTempBuf, 10);
+
+  if (DEBUG) {
+    Serial.print("rightTemp = ");
+    Serial.println(tempToSendR);
+  }
+}
+
 // ============== отправка времени пайки на экран ===================
 void sendTime() {
   byte* f_byte = reinterpret_cast<byte*>(&time);
@@ -870,6 +948,7 @@ void sendTime() {
   outputTimeBuf[9] = userTimeCharArray[0];
   Serial1.write(outputTimeBuf, 10);
 }
+
 // ============== отправка количества оборотов на экран =================
 void sendRotation() {
   outputRevolBuf[6] = highByte(rotation);
@@ -881,6 +960,7 @@ void sendRotation() {
     Serial.println(rotation);
   }
 }
+
 // ============== отправка массы на экран ===================
 void sendMassa() {
   outputMassaBuf[6] = highByte(massa);
@@ -892,6 +972,7 @@ void sendMassa() {
     Serial.println(massa);
   }
 }
+
 // ============== отправка массы на экран ===================
 void sendCream() {
   outputCreamBuf[6] = highByte(cream);
@@ -903,22 +984,7 @@ void sendCream() {
     Serial.println(cream);
   }
 }
-// ============== отправка левой температуры ================
-void sendLeftTemp() {
-  byte* f_byte = reinterpret_cast<byte*>(&tempToSend);
-  memcpy(leftTempCharArray, f_byte, 4);
 
-  outputLeftTempBuf[6] = leftTempCharArray[3];
-  outputLeftTempBuf[7] = leftTempCharArray[2];
-  outputLeftTempBuf[8] = leftTempCharArray[1];
-  outputLeftTempBuf[9] = leftTempCharArray[0];
-  Serial1.write(outputLeftTempBuf, 10);
-
-  if (DEBUG) {
-    Serial.print("leftTemp = ");
-    Serial.println(tempToSend);
-  }
-}
 // ============== отправка количества циклов загрузки =======
 void sendLoadStrach() {
   outputLoadBuf[6] = highByte(loadStrach);
@@ -947,7 +1013,6 @@ void showError() {
   Serial1.write(showErrorBuf, 8);
 }
 
-
 // ======================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =========================
 // ============== отображение содержимого буффера в Serial ==================
 void showBuffer(byte buf[BUFFER_SIZE]) {
@@ -957,6 +1022,7 @@ void showBuffer(byte buf[BUFFER_SIZE]) {
   }
   Serial.println();
 }
+
 // ============== шлёт байт в хексе в Serial ==================
 void printByte(byte c) {
   Serial.print(c, HEX);
@@ -997,4 +1063,18 @@ void changeMass() {
 2. УДАЛЕНЫ 2003/2004/2005 - инкрементал эджастмент (+/-) с экрана
 3. пересмотреть makeResponce()
 
+    case 0x01:
+
+      Serial1.write(changeMainPageBuff, 10);
+      break;
+
+    case 0x02:
+      Serial1.write(changeMainPageBuff, 10);
+      break;
+
+    case 0x03:  //обработка страницы настроек
+      //changeSetPageBuff[8] = 0x01;
+      changeSetPageBuff[9] = lastSetPageID;
+      Serial1.write(changeSetPageBuff, 10);
+      break;
 */
