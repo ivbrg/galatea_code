@@ -500,7 +500,7 @@ byte pedalStatus() {
 
 // проверка датчиков тока
 void checkHeaters() {
-  byte state = 0;
+  byte heaterState = 0;
 
   digitalWrite(DIMMER_L, HIGH);
   leftHeaterCurrent = ACS712_L.mA_AC(50, 1);
@@ -517,18 +517,18 @@ void checkHeaters() {
 
   //проверяем тэны
   if (leftHeaterCurrent < 200.0) {
-    state += 1;
+    heaterState += 1;
   }
   if (rightHeaterCurrent < 200.0) {
-    state += 2;
+    heaterState += 2;
   }
 
   Serial.print("state: ");
-  Serial.println(state);
+  Serial.println(heaterState);
 
   //обработка проверки работы тэнов
 
-  switch (state) {
+  switch (heaterState) {
     case 0:  //ТЭНы ок
       stateLH = 0;
       stateRH = 0;
@@ -538,6 +538,7 @@ void checkHeaters() {
       stateLH = 1;
       stateLHBuff[7] = stateLH;
       Serial1.write(stateLHBuff, 8);
+
       Serial.println("left not working");
       showError();
       break;
@@ -546,6 +547,7 @@ void checkHeaters() {
       stateRH = 1;
       stateRHBuff[7] = stateRH;
       Serial1.write(stateRHBuff, 8);
+
       Serial.println("right not working");
       showError();
       break;
@@ -569,10 +571,10 @@ void checkHeaters() {
       break;
   }
 
-  state = 0;
+  heaterState = 0;
 }
 
-// проверка датчика закрытой крышки
+// проверка датчика CS
 void checkCoverSensor() {
   stateCS = digitalRead(COVER_SENSOR);
   stateCSBuff[7] = stateCS;
@@ -590,11 +592,13 @@ void checkCoverSensor() {
     }
 }
 
+// проверка датчика PS
 void checkPressureSensore(){
   statePS = digitalRead(PRESSURE_METER);
   statePSBuff[7] = statePS;
   Serial1.write(statePSBuff, 8);
 }
+
 // чтение сообщения с двина
 void readDwin() {
   // читаем serial1 пока не получим полное сообщение
