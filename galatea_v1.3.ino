@@ -90,17 +90,17 @@ OneWire oneWireRight(DS18B20_R);
 DallasTemperature sensorRight(&oneWireRight);
 
 // ***** адреса переменных в EEPROM ***** //
-#define EEPROMUserTempAddr =  0;   //float
-#define EEPROMTempAddr =      4;   //float
-#define EEPROMMassaAddr =     8;   //int  
-#define EEPROMCreamAddr =     10;  //int
-#define EEPROMRotationAddr =  12;  //int
-#define EEPROMS1S         =   14;  //int
-#define EEPROMS1C         =   16;
-#define EEPROMS21         =   18;  //int
-#define EEPROMS2C         =   20;  //int
-#define EEPROMS3S         =   22;  //int
-#define EEPROMS3C         =   24;  //int
+#define EEPROMUserTempAddr     =  0;    //float
+#define EEPROMTempAddr         =  4;    //float
+#define EEPROMMassaAddr        =  8;    //int  
+#define EEPROMCreamAddr        =  10;   //int
+#define EEPROMRotationAddr     =  12;   //int
+#define EEPROMWashCycleSt1     =  14;   //int
+#define EEPROMWashCycleCr1     =  16;   //int
+#define EEPROMWashCycleSt2     =  18;   //int
+#define EEPROMWashCycleCr1     =  20;   //int
+#define EEPROMWashCycleSt3     =  22;   //int
+#define EEPROMWashCycleCr1     =  24;   //int
 
 // переменные датчиков тока (mA)
 float leftHeaterCurrent;
@@ -139,7 +139,7 @@ byte sensorFlag[] = { 0, 0, 0 };  // флаги дозации
 byte pedalFlag = 0;               // флаг нажатия педали
 
 //переменные шаговиков
-byte stepFlag = 0;  // тестовый степ флаг
+byte stepFlag = 0;                // тестовый степ флаг
 
 int revol = 1200;
 uint32_t stepTimerRE = 0;
@@ -204,15 +204,17 @@ byte pressIsOn = 0;     // флаг включенных прессов
 byte rotationIsON = 0;  // флаг включенного основного шаговика
 byte testFlag = 0;      // тестовый флаг
 
-byte loadStrach = 10;  // циклов загрузки страчателлы
-byte loadCream = 10;   // циклов загрузки сливок
-byte loadStart = 0;    // флаг загрузки
+byte washCycleSt1 = 10;  // циклов загрузки страчателлы
+byte washCycleCr1 = 10;   // циклов загрузки сливок
+byte washCycle1Start = 0;    // флаг загрузки
 
-byte unloadStrach = 10;  // циклов разргузки страчателлы
-byte unloadCream = 10;   // циклов разгрузки сливок
-byte unloadStart = 0;    // флаг разгрузки
+byte washCycleSt2 = 10;  // циклов разргузки страчателлы
+byte washCycleCr2 = 10;   // циклов разгрузки сливок
+byte washCycle2Start = 0;    // флаг разгрузки
 
-byte washCycles = 10;  // количество циклов мойки
+byte washCycleSt3 = 10;  // количество циклов мойки
+byte washCycleCr3 = 10;  // количество циклов мойки
+byte washCycle3Start = 0;
 
 
 byte err = 0;
@@ -266,17 +268,41 @@ byte dwinMessageLength = 0;
 bool inputMessageComplete = false;
 
 // буфферы передачи в DWIN
-//буфферы передачи параметров
+//буфферы передачи температуры
 byte outputUserTempBuf[] = { 0X5A, 0XA5, 0X7, 0X82, 0X30, 0X04, 0X0, 0x0, 0x00, 0x00 };   // буффер отправки температуры на экран
+//буфферы передачи времени пайки
 byte outputTimeBuf[] = { 0X5A, 0XA5, 0X7, 0X82, 0X30, 0X0C, 0X0, 0x0, 0x00, 0x00 };       // буффер отправки времени прессовки на экран
+//буфферы передачи оборотов
 byte outputRevolBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X14, 0X0, 0x0 };                  // буффер отправки количества оборот на экран
+//буфферы передачи объёма продукта
 byte outputMassaBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X12, 0X0, 0x0 };                  // буффер отправки объёма на экран
+//буфферы передачи процентов сливок
 byte outputCreamBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X14, 0X0, 0x0 };                  // буффер отправки %сливок на экран
+//буфферы передачи температуры левого тэна
 byte outputLeftTempBuf[] = { 0X5A, 0XA5, 0X7, 0X82, 0X30, 0X16, 0X0, 0x0, 0x00, 0x00 };   // буффер отправки температуры левого ТЭНА на экран
+//буфферы передачи температуры правого тэна
 byte outputRightTempBuf[] = { 0X5A, 0XA5, 0X7, 0X82, 0X30, 0X1A, 0X0, 0x0, 0x00, 0x00 };  // буффер отправки температуры правого ТЭНА на экран
+//буфферы передачи кнопок цилиндров
 byte cylindersBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X25, 0X00, 0X0, 0x0 };                    // буффер отправки изменённого состояния цилиндра
+//буфферы включения иконки с неправильным паролем
 byte wrongPassBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X12, 0X05, 0X0, 0x0 };                    // буффер отправки сообщения о вводе неправильного пароля
+
+//!!!!!?!?!?!? найти что это
 byte outputLoadBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X20, 0X08, 0X0, 0x0 };                   // буффер отправки параметров загрузки страчателлы
+//буфферы передачи количества циклов страчателлы на 1 экране
+byte washCycleSt1Buf [] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X20, 0X0, 0x0 };
+//буфферы передачи количества циклов сливок на 1 экране
+byte washCycleCr1Buf [] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X22, 0X0, 0x0 };
+//буфферы передачи количества циклов страчателлы на 2 экране
+byte washCycleSt2Buf [] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X24, 0X0, 0x0 };
+//буфферы передачи количества циклов сливок на 2 экране
+byte washCycleCr2Buf [] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X26, 0X0, 0x0 };
+//буфферы передачи количества циклов страчателлы на 3 экране
+byte washCycleSt3Buf [] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X28, 0X0, 0x0 };
+//буфферы передачи количества циклов сливок на 3 экране
+byte washCycleCr3Buf [] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X2A, 0X0, 0x0 };
+
+
 byte showErrorBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X00, 0X0, 0x0 };                    // буффер отправки ошибки
 byte ssStateBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X26, 0X00, 0X0, 0x0 };                      // буффер отправки состояния датчика цилиндра
 
@@ -407,7 +433,7 @@ void setup() {
   //проверяем крышку, датчик давления, ТЭНы
   //checkSensors();
   
-  delay(2000);
+  delay(3000);
 
   //загрузка параметров
   setDwin();

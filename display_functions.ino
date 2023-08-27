@@ -428,29 +428,41 @@ void makeResponce() {  // VP20xx
       }
       break;
 
-    case 0x03:  // начать загрузку
-      loadStart = inputBuf[4];
-      if(loadStart){
+    case 0x03:  // начать загрузку (цикл 1)
+      washCycle1Start = inputBuf[4];
+      if(washCycle1Start){
         Serial1.write(loadPageAddrBuf, 10);    //перешли на страницу 
       } else {
         Serial1.write(changeSetPageBuff, 10); //вернулись на страницу "загрузка"
       }
       if (DEBUG) {
-        Serial.print("start loading = ");
+        Serial.print("start cycle 1 = ");
         Serial.println(inputBuf[4]);
       }
       break;
 
-
-    case 0x04:  // начать разгрузку 
-      unloadStart = inputBuf[4];
-      if(loadStart){
+    case 0x04:  // начать разгрузку (цикл 2)
+      washCycle2Start = inputBuf[4];
+      if(washCycle2Start){
         Serial.write(loadPageAddrBuf, 10);    //перешли на страницу 
       } else {
         Serial1.write(changeSetPageBuff, 10); //вернулись на страницу "загрузка"
       }
       if (DEBUG) {
-        Serial.print("start loading = ");
+        Serial.print("start cycle 2 = ");
+        Serial.println();
+      }
+      break;
+  
+    case 0x05:  // начать разгрузку (цикл 3)
+      washCycle3Start = inputBuf[4];
+      if(washCycle3Start){
+        Serial.write(loadPageAddrBuf, 10);    //перешли на страницу 
+      } else {
+        Serial1.write(changeSetPageBuff, 10); //вернулись на страницу "загрузка"
+      }
+      if (DEBUG) {
+        Serial.print("start cycle 2 = ");
         Serial.println();
       }
       break;
@@ -809,42 +821,50 @@ void changeVar() {  // VP30xx
       break;
 
     case 0x20:  // изменение загрузки страчателлы
-      loadStrach = (inputBuf[3] << 8) | inputBuf[4];
+      washCycleSt1 = (inputBuf[3] << 8) | inputBuf[4];
       if(DEBUG){
-        Serial.print("loadStrach = ");
-        Serial.println(loadStrach);
+        Serial.print("washCycleSt1 = ");
+        Serial.println(washCycleSt1);
       }
       break;
 
     case 0x22:  // изменение загрузки сливок
-      loadCream = (inputBuf[3] << 8) | inputBuf[4];
+      washCycleCr1 = (inputBuf[3] << 8) | inputBuf[4];
       if(DEBUG){
-        Serial.print("loadCream = ");
-        Serial.println(loadCream);
+        Serial.print("washCycleCr1 = ");
+        Serial.println(washCycleCr1);
       }
       break;
     
     case 0x24:  // изменение разгрузки страчателлы
-      unloadStrach = (inputBuf[3] << 8) | inputBuf[4];
+      washCycleSt2 = (inputBuf[3] << 8) | inputBuf[4];
       if(DEBUG){
-        Serial.print("unloadStrach = ");
-        Serial.println(unloadStrach);
+        Serial.print("washCycleSt2 = ");
+        Serial.println(washCycleSt2);
       }
       break;
 
     case 0x26:  // изменение разгрузки сливок
-      unloadCream = (inputBuf[3] << 8) | inputBuf[4];
+      washCycleCr2 = (inputBuf[3] << 8) | inputBuf[4];
       if(DEBUG){
-        Serial.print("unloadCream = ");
-        Serial.println(unloadCream);
+        Serial.print("washCycleCr2 = ");
+        Serial.println(washCycleCr2);
       }
       break;
 
     case 0x28:  // изменение циклов мойки
-      unloadCream = (inputBuf[3] << 8) | inputBuf[4];
+      washCycleSt3 = (inputBuf[3] << 8) | inputBuf[4];
       if(DEBUG){
-        Serial.print("unloadCream = ");
-        Serial.println(unloadCream);
+        Serial.print("washCycleSt3 = ");
+        Serial.println(washCycleSt3);
+      }
+      break;
+
+    case 0x2A:  // изменение циклов мойки
+      washCycleCr3 = (inputBuf[3] << 8) | inputBuf[4];
+      if(DEBUG){
+        Serial.print("washCycleCr3 = ");
+        Serial.println(washCycleCr3);
       }
       break;
 
@@ -946,14 +966,28 @@ void operatingMode(byte i) {
 // ============== загрузка параметров в экран ================
 void setDwin() {
   //отправить параметры машины на экран
-  Serial.println("GOT SET DWIN");
+  Serial.println("GOT setDwin()");
   sendUserTemp();  //  загрузка значения температуры
+  delay(50);
   sendTime();
+  delay(50);
   sendRotation();
+  delay(50);
   sendMassa();
+  delay(50);
   sendCream();
-  sendLoadStrach();
-  sendLoadCream();
+  delay(50);
+  sendWashCycleSt1();
+  delay(50);
+  sendWashCycleCr1();
+  delay(50);
+  sendWashCycleSt2();
+  delay(50);
+  sendWashCycleCr2();
+  delay(50);
+  sendWashCycleSt3();
+  delay(50);  
+  sendWashCycleCr3();
 
   //отправить состояния датчиов
   checkHeaters();
@@ -1061,36 +1095,83 @@ void sendCream() {
   }
 }
 
-// ============== отправка количества циклов загрузки =======
-void sendLoadStrach() {
-  outputLoadBuf[6] = highByte(loadStrach);
-  outputLoadBuf[7] = lowByte(loadStrach);
-  Serial1.write(outputLoadBuf, 8);
-
-  if (DEBUG) {
-    Serial.print("loadStrach = ");
-    Serial.println(loadStrach);
-  }
-}
-
-// ============== отправка количества циклов загрузки =======
-void sendLoadCream() {
-  outputLoadBuf[6] = highByte(loadStrach);
-  outputLoadBuf[7] = lowByte(loadStrach);
-  Serial1.write(outputLoadBuf, 8);
-
-  if (DEBUG) {
-    Serial.print("loadStrach = ");
-    Serial.println(loadStrach);
-  }
-}
-
 // ============== отображает предупреждение на экране =======
 void showError() {
   showErrorBuf[7] = 1;
   Serial1.write(showErrorBuf, 8);
 }
 
+// ============== отправка количества циклов страчателлы на экране 1 =======
+void sendWashCycleSt1() {
+  washCycleSt1Buf[6] = highByte(washCycleSt1);
+  washCycleSt1Buf[7] = lowByte(washCycleSt1);
+  Serial1.write(washCycleSt1Buf, 8);
+
+  if (DEBUG) {
+    Serial.print("washCycleSt1 = ");
+    Serial.println(washCycleSt1);
+  }
+}
+
+// ============== отправка количества циклов сливок на экране 1 =======
+void sendWashCycleCr1() {
+  washCycleCr1Buf[6] = highByte(washCycleCr1);
+  washCycleCr1Buf[7] = lowByte(washCycleCr1);
+  Serial1.write(washCycleCr1Buf, 8);
+
+  if (DEBUG) {
+    Serial.print("washCycleCr1 = ");
+    Serial.println(washCycleCr1);
+  }
+}
+
+// ============== отправка количества циклов страчателлы на экране 2 =======
+void sendWashCycleSt2() {
+  washCycleSt2Buf[6] = highByte(washCycleSt2);
+  washCycleSt2Buf[7] = lowByte(washCycleSt2);
+  Serial1.write(washCycleSt2Buf, 8);
+
+  if (DEBUG) {
+    Serial.print("washCycleSt2 = ");
+    Serial.println(washCycleSt2);
+  }
+}
+
+// ============== отправка количества циклов сливок на экране 2 =======
+void sendWashCycleCr2() {
+  washCycleCr2Buf[6] = highByte(washCycleCr2);
+  washCycleCr2Buf[7] = lowByte(washCycleCr2);
+  Serial1.write(washCycleCr2Buf, 8);
+
+  if (DEBUG) {
+    Serial.print("washCycleCr2 = ");
+    Serial.println(washCycleCr2);
+  }
+}
+
+// ============== отправка количества циклов страчателлы на экране 1 =======
+void sendWashCycleSt3() {
+  washCycleSt3Buf[6] = highByte(washCycleSt3);
+  washCycleSt3Buf[7] = lowByte(washCycleSt3);
+  Serial1.write(washCycleSt3Buf, 8);
+
+  if (DEBUG) {
+    Serial.print("washCycleSt3 = ");
+    Serial.println(washCycleSt3);
+  }
+}
+
+// ============== отправка количества циклов сливок на экране 1 =======
+void sendWashCycleCr3() {
+  washCycleCr3Buf[6] = highByte(washCycleCr3);
+  washCycleCr3Buf[7] = lowByte(washCycleCr3);
+  Serial1.write(washCycleCr3Buf, 8);
+
+  if (DEBUG) {
+    Serial.print("washCycleCr3 = ");
+    Serial.println(washCycleCr3);
+  }
+}
 
 
 // ======================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =========================
