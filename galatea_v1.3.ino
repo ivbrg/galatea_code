@@ -5,15 +5,15 @@ byte DEBUG = 1;
 // SOLENOIDS
 #define SOLENOID_SWITCH1 35   // голова сливок
 #define SOLENOID_SWITCH2 34   // голова страчателлы
-#define SOLENOID_SWITCH4 33   // форсунка пресс-форсунки
-#define SOLENOID_SWITCH3 32   // подставка
+#define SOLENOID_SWITCH3 33   // подставка
+#define SOLENOID_SWITCH4 32   // форсунка пресс-форсунки
 #define SOLENOID_SWITCH5 31   // пресс-форсунка
 #define SOLENOID_SWITCH6 30   // цилиндр страчателлы
 #define SOLENOID_SWITCH7 39   // цилиндр сливок
-#define SOLENOID_SWITCH8 29   // разгрузка
-#define SOLENOID_SWITCH9 28   // редуктор
-#define SOLENOID_SWITCH10 27  // левый пресс
-#define SOLENOID_SWITCH11 26  // правый пресс
+#define SOLENOID_SWITCH8 29   // правый пресс
+#define SOLENOID_SWITCH9 28   // левый пресс
+#define SOLENOID_SWITCH10 27  // редуктор
+#define SOLENOID_SWITCH11 26  // разгрузка
 #define SOLENOID_SWITCH12 25  // нож
 
 // SENSORS
@@ -25,12 +25,14 @@ byte DEBUG = 1;
 #define SOLENOID_SENSOR6 A5  //датчик сливок подвижный
 #define SOLENOID_SENSOR7 A6  //датчик пресс-форсунки низ
 #define SOLENOID_SENSOR8 A7  //датчик левый пресс к центру
-#define SOLENOID_SENSOR9 A8   //датчик левый пресс от центра
-#define SOLENOID_SENSOR10 A9  //датчик правый пресс от центра
-#define SOLENOID_SENSOR11 A10 //датчик правый пресс к центру
-#define SOLENOID_SENSOR12 A11 //датчик ножа от центра
-#define SOLENOID_SENSOR13 A12 //датчик ножа центр
-#define SOLENOID_SENSOR14 A13 //датчик разгрузки
+
+#define SOLENOID_SENSOR9 A8   //подвижный датчик сливок (был!!! датчик левый пресс от центра
+#define SOLENOID_SENSOR10 A9  //верхний сливки (был!!! датчик правый пресс от центра)
+#define SOLENOID_SENSOR11 A10 //датчик редуктора верх
+#define SOLENOID_SENSOR12 A11 //датчик редуктора низ
+#define SOLENOID_SENSOR13 A12 //датчик страчателлы
+#define SOLENOID_SENSOR14 A13 //подвижный датчик страчателла 
+
 #define COVER_SENSOR 43       //датчик защитной крышки
 #define TURN_SENSOR 42        //датчик круга
 #define PRESSURE_METER 21     //датчик давления
@@ -123,10 +125,10 @@ bool ssState13 = 0;
 bool ssState14 = 0;
 
 //буффер состояния соленоидов/цилиндров
-byte cylinderState[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //SSwitch1, SSwitch2, SSwitch3...
+byte cylinderState[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //0, SSwitch1, SSwitch2, SSwitch3...
 
 // переменные таймеров
-uint32_t tempTimer, pidTimer, stepTimer, pushTimer, pressTimer, testTimer;
+uint32_t tempTimer, pidTimer, stepTimer, pushTimer, pressTimer, testTimer, cycleIconTimer;
 
 // переменные флагов
 byte coverSensorState = 0;        // флаг состояние датчика защитного экрана
@@ -153,6 +155,11 @@ int stepsCWSpeed = 1000;   // скорость шаговика по часов�
 int stepsCCWSpeed = 1000;  // скорость шаговика против часовой
 int stepsCCW = 0;
 float CCWSpeedTest = 0;
+
+    //настройки на странице "настройки"
+byte motorREON = 0;
+int motorRESpeed = 1000;
+byte motorREDir = 0;
 
 // переменные шаговика ST - цилиндра страчателлы
 byte stepFlagST = 0;
@@ -192,29 +199,36 @@ byte stateRH = 0;       //состояние датчика правого ТЭ�
 byte straciatellaButtonFlag = 0;  // флаг кнопки "масса"
 byte straciatellaButtonCase = 0;  // кейс функции "масса"
 
-byte burrataButtonFlag = 0;  // флаг кнопки "буррата"
-byte burrataButtonCase = 0;  // кейс функции "буррата"
+byte burrataButtonFlag = 0;       // флаг кнопки "буррата"
+byte burrataButtonCase = 0;       // кейс функции "буррата"
 
-byte rotateDiskButtonFlag = 0;  // флаг кнопки "шаг"
-byte rotateDiskButtonCase = 0;  // кейс функции "шаг"
+byte rotateDiskButtonFlag = 0;    // флаг кнопки "шаг"
+byte rotateDiskButtonCase = 0;    // кейс функции "шаг"
 
-byte heaterIsOn = 0;    // флаг включенных тэнов
-byte knifeIsOn = 0;     // флаг включенного ножа
-byte pressIsOn = 0;     // флаг включенных прессов
-byte rotationIsON = 0;  // флаг включенного основного шаговика
-byte testFlag = 0;      // тестовый флаг
+byte heaterIsOn = 0;              // флаг включенных тэнов
+byte knifeIsOn = 0;               // флаг включенного ножа
+byte pressIsOn = 0;               // флаг включенных прессов
+byte rotationIsON = 0;            // флаг включенного основного шаговика
+byte testFlag = 0;                // тестовый флаг
 
-byte washCycleSt1 = 10;  // циклов загрузки страчателлы
-byte washCycleCr1 = 10;   // циклов загрузки сливок
-byte washCycle1Start = 0;    // флаг загрузки
+// ***** переменные для вспомогательного меню мойки *****
+byte doCycle = 0;                 // флаг начала цикла для основного лупа
+byte numCycle = 0;                // номер цикла
 
-byte washCycleSt2 = 10;  // циклов разргузки страчателлы
-byte washCycleCr2 = 10;   // циклов разгрузки сливок
-byte washCycle2Start = 0;    // флаг разгрузки
+byte washCycleSt1 = 10;           // циклов загрузки страчателлы
+byte washCycleCr1 = 10;           // циклов загрузки сливок
+//?!?!byte washCycle1Start = 0;         // флаг загрузки
+byte cycle1Case = 0;              // кейс для функции cycle1
 
-byte washCycleSt3 = 10;  // количество циклов мойки
-byte washCycleCr3 = 10;  // количество циклов мойки
-byte washCycle3Start = 0;
+byte washCycleSt2 = 10;           // циклов разргузки страчателлы
+byte washCycleCr2 = 10;           // циклов разгрузки сливок
+//?!?!byte washCycle2Start = 0;         // флаг разгрузки
+byte cycle2Case = 0;              // кейс для функции cycle2
+
+byte washCycleSt3 = 10;           // количество циклов мойки
+byte washCycleCr3 = 10;           // количество циклов мойки
+//?!?!byte washCycle3Start = 0;         
+byte cycle3Case = 0;              // кейс для функции cycle3
 
 
 byte err = 0;
@@ -228,27 +242,26 @@ float userTemp = 30.0;               // температура пайки
 char userTempCharArray[] = "0000";   // массив для перевода температуры из ascii в float
 char leftTempCharArray[] = "0000";   // массив для перевода левого ТЭНа из float в ascii
 char rightTempCharArray[] = "0000";  // массив для перевода правого ТЭНа из float в ascii
-float time;                          // время пайки
+float time = 2;                          // время пайки
 char userTimeCharArray[] = "0000";   // массив для перевода времени пайки из ascii в float
 
 int massa = 50;  // страчателла в мл
 int STmassa;
-int maxMassa = 300;  // максимальное значение массы (без пропорции)
+int maxMassa = 225;  // максимальное значение массы (без пропорции)
 
 int cream = 10;  // сливки в %
 int CRmassa;
-int maxCream = 95;  // максимальное значение сливок
+int maxCream = 40;  // максимальное значение сливок
 
 int rotation = 2;  // количество оборотов бурраты
 
 
 //переменные калибровки
 byte startCalibrFlag = 0;
-byte calibrVolume = 0;
+byte calibrateVolumeFlag = 0;
+byte calibrateVolumeCase = 0;
 byte calibrDisk = 0;
-byte calibrPress = 0;
-byte calibrKnife = 0;
-byte calibrRazgruz = 0;
+byte calibrPosition = 0;
 byte calibrHeaters = 0;
 
 
@@ -273,7 +286,7 @@ byte outputUserTempBuf[] = { 0X5A, 0XA5, 0X7, 0X82, 0X30, 0X04, 0X0, 0x0, 0x00, 
 //буфферы передачи времени пайки
 byte outputTimeBuf[] = { 0X5A, 0XA5, 0X7, 0X82, 0X30, 0X0C, 0X0, 0x0, 0x00, 0x00 };       // буффер отправки времени прессовки на экран
 //буфферы передачи оборотов
-byte outputRevolBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X14, 0X0, 0x0 };                  // буффер отправки количества оборот на экран
+byte outputRevolBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X10, 0X0, 0x0 };                  // буффер отправки количества оборот на экран
 //буфферы передачи объёма продукта
 byte outputMassaBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X12, 0X0, 0x0 };                  // буффер отправки объёма на экран
 //буфферы передачи процентов сливок
@@ -282,8 +295,12 @@ byte outputCreamBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X14, 0X0, 0x0 };        
 byte outputLeftTempBuf[] = { 0X5A, 0XA5, 0X7, 0X82, 0X30, 0X16, 0X0, 0x0, 0x00, 0x00 };   // буффер отправки температуры левого ТЭНА на экран
 //буфферы передачи температуры правого тэна
 byte outputRightTempBuf[] = { 0X5A, 0XA5, 0X7, 0X82, 0X30, 0X1A, 0X0, 0x0, 0x00, 0x00 };  // буффер отправки температуры правого ТЭНА на экран
+//буффер отправки скорости мотора RE на экран настроек
+byte outputMotorRESpeed[] = { 0X5A, 0XA5, 0X5, 0X82, 0X27, 0X02, 0X0, 0x0};               // буффер отправки скорости мотора RE
 //буфферы передачи кнопок цилиндров
 byte cylindersBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X25, 0X00, 0X0, 0x0 };                    // буффер отправки изменённого состояния цилиндра
+//буфферы передачи значения иконок цилиндров
+byte cylinderIconBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X24, 0X00, 0X0, 0x0 };                 // буффер отправки иконки состояния цилиндра
 //буфферы включения иконки с неправильным паролем
 byte wrongPassBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X12, 0X05, 0X0, 0x0 };                    // буффер отправки сообщения о вводе неправильного пароля
 
@@ -302,10 +319,16 @@ byte washCycleSt3Buf [] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X28, 0X0, 0x0 };
 //буфферы передачи количества циклов сливок на 3 экране
 byte washCycleCr3Buf [] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X2A, 0X0, 0x0 };
 
+//буффер анимированной иконки циклов
+byte  cycleIconLeftBuff [] = { 0X5A, 0XA5, 0X5, 0X82, 0X13, 0X14, 0X0, 0x0 };
+byte  cycleIconRightBuff [] = { 0X5A, 0XA5, 0X5, 0X82, 0X13, 0X15, 0X0, 0x0 };
 
+//буффер вывода сообщения о ошибке в пароле
 byte showErrorBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X00, 0X0, 0x0 };                    // буффер отправки ошибки
+//буффер иконок датчиков цилиндров 
 byte ssStateBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X26, 0X00, 0X0, 0x0 };                      // буффер отправки состояния датчика цилиндра
 
+//буфферы значения иконок датчиков крышки/давления/тока
 byte stateCSBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X14, 0X00, 0X0, 0x0 };                      // буффер состояния датчика защитной крышки CS
 byte statePSBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X14, 0X01, 0X0, 0x0 };                      // буффер состояния датчика датчика давления PS
 byte stateLHBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X14, 0X02, 0X0, 0x0 };                      // буффер состояния датчика левого ТЭНА LH
@@ -342,6 +365,10 @@ byte calibrButtonsBuf[] = { 0X5A, 0XA5, 0X05, 0X82, 0X21, 0X00, 0X00, 0x00 };  /
 
 byte switchBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X00, 0X0, 0x0 };
 
+//буффер количества сделанных циклов
+byte todayCyclesBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X30, 0X0, 0x0 };                      // буффер состояния датчика правого ТЭНА RH
+int todayCycles = 0;
+byte todayCycleFlag = 0;
 
 
 void setup() {
@@ -412,6 +439,7 @@ void setup() {
   // RS232
   Serial1.begin(115200);
 
+  // 
   sensorLeft.begin();
   sensorLeft.setWaitForConversion(false);
   sensorRight.begin();
@@ -422,18 +450,16 @@ void setup() {
 
   //ПЕРЕМЕСТИТЬ ВЫСТАВЛЕНИЯ В КАЛИБРОВКУ!
   digitalWrite(SOLENOID_SWITCH6, HIGH);  //страч
-  cylinderState[5] = 1;                  //запоминаем состояние цилиндра
-  digitalWrite(SOLENOID_SWITCH7, HIGH);  //сливки
   cylinderState[6] = 1;                  //запоминаем состояние цилиндра
-  digitalWrite(SOLENOID_SWITCH9, HIGH);  //редуктор
-  cylinderState[8] = 1;                  //запоминаем состояние цилиндра
+  digitalWrite(SOLENOID_SWITCH7, HIGH);  //сливки
+  cylinderState[7] = 1;                  //запоминаем состояние цилиндра
   digitalWrite(SOLENOID_SWITCH4, HIGH);  //подставка
-  cylinderState[3] = 1;                  //запоминаем состояние цилиндра
+  cylinderState[4] = 1;                  //запоминаем состояние цилиндра
   
   //проверяем крышку, датчик давления, ТЭНы
   //checkSensors();
   
-  delay(3000);
+  delay(2000);
 
   //загрузка параметров
   setDwin();
@@ -536,10 +562,10 @@ void checkHeaters() {
   rightHeaterCurrent = ACS712_R.mA_AC(50, 1);
   digitalWrite(DIMMER_R, LOW);
 
-  Serial.print("Left heater: ");
-  Serial.println(leftHeaterCurrent);
-  Serial.print("Right heater: ");
-  Serial.println(rightHeaterCurrent);
+  //Serial.print("Left heater: ");
+  //Serial.println(leftHeaterCurrent);
+  //Serial.print("Right heater: ");
+  //Serial.println(rightHeaterCurrent);
 
   //проверяем тэны
   if (leftHeaterCurrent < 200.0) {
@@ -573,7 +599,7 @@ void checkHeaters() {
       stateRH = 1;
       stateRHBuff[7] = stateRH;
       Serial1.write(stateRHBuff, 8);
-
+      
       Serial.println("right not working");
       showError();
       break;
@@ -640,7 +666,7 @@ void readDwin() {
 }
 
 void loop() {
-
+/*
   // работа с температурой
   if (millis() - tempTimer >= 800) {
     tempTimer = millis();
@@ -653,11 +679,6 @@ void loop() {
       tempToSendR = tempRight;
       sendRightTemp();
     }
-    /*if(DEBUG){
-      Serial.print("tempLeft = ");
-      Serial.println(tempLeft);
-    }
-    */
   }
 
   // работа с ПИД
@@ -667,7 +688,7 @@ void loop() {
     dimmerL = map(outL, 500, 9300, 9300, 500);
     dimmerR = map(outR, 500, 9300, 9300, 500);
   }
-
+*/
   // включена главная кнопка
   if (mainButton) {
     // нажали педаль
@@ -685,23 +706,28 @@ void loop() {
   }
 
   // включена кнопка "шаг"
-  if (rotateDiskButtonFlag || digitalRead(OPTIONAL_BUTTON2)) {
+  if (rotateDiskButtonFlag ){ // || digitalRead(OPTIONAL_BUTTON2)) {
     //запускаем функцию оборота
     rotateDiskButton();
   } 
 
   // включена кнопка "масса"
-  if (straciatellaButtonFlag || digitalRead(OPTIONAL_BUTTON3)) {
-    straciatellaButton();
+  if (straciatellaButtonFlag ){//|| digitalRead(OPTIONAL_BUTTON3)) {
+    //straciatellaButton();
+  }
+
+  //калибровка объёма дозаторов
+  if (calibrateVolumeFlag){
+    calibrateVolume();
   }
 
   // перемещаем датчик страчателлы в нужную координату
-  if (STInMotionFlag == 1 && straciatellaButtonFlag == 0) {
+  if (STInMotionFlag == 1 && calibrateVolumeFlag == 0) {
     calcMassaST();
   }
 
   // перемещаем датчик сливок в нужную координату
-  if (CRInMotionFlag == 1 && straciatellaButtonFlag == 0) {
+  if (CRInMotionFlag == 1 && calibrateVolumeFlag == 0) {
     calcMassaCR();
   }
 
@@ -714,6 +740,73 @@ void loop() {
   if(statePS != digitalRead(PRESSURE_METER)){
     checkPressureSensore();
   };
+
+
+  //!!!! ДОПИСАТЬ:
+  // проверяем вспомогательный цикл
+  if(doCycle){
+    switch(numCycle){
+      case 0:
+        if(DEBUG){
+          Serial.println("doCycle zero case error");
+        }
+      break;
+
+      case 1:
+        cycle1();
+        break;
+
+      case 2:
+        cycle2();
+        break;
+
+      case 3:
+        cycle3();
+        break;
+
+      default:
+        if(DEBUG){
+          Serial.print("doCycle in loop error!!!");
+        }
+        break;
+    }
+  }
+
+  //управление мотором из настроек
+  if(motorREON){
+    if(motorREDir){
+      if(cylinderState[5] == 0){    //если пресс-форсунка поднята
+        if (micros() - stepTimerRE >= motorRESpeed) {
+          stepTimerRE = micros();
+          makeRE_CWR();  // вращаем мотора диска
+      }
+
+      }
+    } else {
+      if (micros() - stepTimerRE >= motorRESpeed) {
+        stepTimerRE = micros();
+        makeRE_CCWR();  // вращаем мотора диска
+      }
+    }
+  }
+
+  //включаем редуктор вверх-вниз из настроек
+  if(calibrPosition){
+    if(digitalRead(SOLENOID_SENSOR11) && !digitalRead(SOLENOID_SENSOR12)){
+      digitalWrite(SOLENOID_SWITCH10, HIGH);
+      if(todayCycleFlag == 0){
+        todayCycleFlag = 1;
+        todayCycles++;
+        todayCyclesBuff[6] = highByte(todayCycles);
+        todayCyclesBuff[7] = lowByte(todayCycles);
+        Serial1.write(todayCyclesBuff, 8);
+      }
+    }
+    if(digitalRead(SOLENOID_SENSOR12) && !digitalRead(SOLENOID_SENSOR11)){
+      digitalWrite(SOLENOID_SWITCH10, LOW);
+      todayCycleFlag = 0;
+    }
+  }
 
   // проверка наличия сообщения с экрана и обработка сообщения
   readDwin();
@@ -733,6 +826,10 @@ void loop() {
   9.  энергонезависимая память
   10. loadStrach/unloadStrach/washCycles - переименовать и переделать
   11. проверить pressIsOn итд
-
+  12. добавить в настройки страницу с "вкл/выкл" пароля/перезагрузка
+  13. проверить нужен ли cylinderBuf[], тк появился cylinderIconBuf
+  14. чекать поршень в дозаторах вверху перед включениеп калибиовки
+  15. если калибровку олъёма не сделали и меняем значение массы/сливок, то менять значение через калибровку
+  16. лимиты по сливкам с экрана - 40, по общему объёму 225мл - дописать в экран - чтобы любое перекидывал на максимум
   */
 

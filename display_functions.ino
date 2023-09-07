@@ -5,6 +5,9 @@
   10 01 | 11 = разгрузка;
   10 01 | 12 = мойка;
 
+
+  10 01 | 07 =  остановка цикла
+
   *** предупреждения ***
   
   11 00 | i
@@ -47,6 +50,9 @@
   13 11 | = solenoid sensor 12
   13 12 | = solenoid sensor 13
   13 13 | = solenoid sensor 14
+
+  13 14 | = cycle icon left
+  13 15 | = cycle icon right
 
   14 00 | = иконка датчика крышки
   14 01 | = иконка датчика давления
@@ -228,6 +234,10 @@ void parseBuffer() {
       cylinders();
       break;
 
+    case 0x27:  //функции мотора RE
+      motorRE();
+      break;
+
     case 0x30:  //изменить параметр
       changeVar();
       break;
@@ -284,6 +294,48 @@ void changePage() {  // VP10xx
         //showBuffer(inputBuf);
       }
       break;
+
+    //===== запускаем цикл с страницы 1 =====
+    case 0x04:
+      doCycle = 1; 
+      numCycle = 1;
+      if(DEBUG){
+        Serial.print("numCycle: ");
+        Serial.println(numCycle);
+      }
+      break;
+
+    //===== запускаем цикл с страницы 2 =====
+    case 0x05:
+      doCycle = 1; 
+      numCycle = 2;
+      if(DEBUG){
+        Serial.print("numCycle: ");
+        Serial.println(numCycle);
+      }
+      break;
+
+    //===== запускаем цикл с страницы 3 =====
+    case 0x06:
+      doCycle = 1; 
+      numCycle = 1;
+      if(DEBUG){
+        Serial.print("numCycle: ");
+        Serial.println(numCycle);
+      }
+      break;
+
+    case 0x07:
+      doCycle = 0;
+      numCycle = 0;
+      changeSetPageBuff[9] = lastSetPageID;
+      Serial1.write(changeSetPageBuff, 10);
+      if(DEBUG){
+        Serial.print("Stop cycle, ");
+        Serial.print("numCycle: ");
+        Serial.println(numCycle);
+      }
+    break;
 
     default:
       if (DEBUG) {
@@ -355,7 +407,7 @@ void pressButton() {  // VP11xx
         }
 
         if (DEBUG) {
-          Serial.print("Got strachatellaButton: ");
+          Serial.print("Got strachatellaButtonFlag: ");
           Serial.println(straciatellaButtonFlag);
         }
       }
@@ -427,7 +479,7 @@ void makeResponce() {  // VP20xx
         Serial.println(heaterIsOn);
       }
       break;
-
+/*
     case 0x03:  // начать загрузку (цикл 1)
       washCycle1Start = inputBuf[4];
       if(washCycle1Start){
@@ -539,119 +591,125 @@ void calibrContor() {  // VP21xx
     
     case 0x01: // нажали на кнопку "вкл/выкл всё"
       if(DEBUG){
-        Serial.println("case 0x01");
+        Serial.print("calibrContor(), turn all: ");
+        Serial.println(inputBuf[4]);
       }
-      if(inputBuf[3]){
+      if(inputBuf[4]){
         //вкл объём
         calibrButtonsBuf[5] = 0x02;
         calibrButtonsBuf[7] = 0x01;
         Serial1.write(calibrButtonsBuf, 8);
+        while(Serial1.read() != 0x4B);
 
         //вкл круг
         calibrButtonsBuf[5] = 0x03;
         calibrButtonsBuf[7] = 0x01;
         Serial1.write(calibrButtonsBuf, 8);
+        while(Serial1.read() != 0x4B);
 
         //вкл прессы
         calibrButtonsBuf[5] = 0x04;
         calibrButtonsBuf[7] = 0x01;
         Serial1.write(calibrButtonsBuf, 8);
+        while(Serial1.read() != 0x4B);
 
         //вкл нож
         calibrButtonsBuf[5] = 0x05;
         calibrButtonsBuf[7] = 0x01;
         Serial1.write(calibrButtonsBuf, 8);
+        while(Serial1.read() != 0x4B);
 
         //вкл разгруз
         calibrButtonsBuf[5] = 0x06;
         calibrButtonsBuf[7] = 0x01;
         Serial1.write(calibrButtonsBuf, 8);
+        while(Serial1.read() != 0x4B);        
 
         //вкл ТЭНы
         calibrButtonsBuf[5] = 0x07;
         calibrButtonsBuf[7] = 0x01;
         Serial1.write(calibrButtonsBuf, 8);
+        while(Serial1.read() != 0x4B);
 
       } else {
         //выкл объём
         calibrButtonsBuf[5] = 0x02;
         calibrButtonsBuf[7] = 0x00;
         Serial1.write(calibrButtonsBuf, 8);
+        while(Serial1.read() != 0x4B);
 
         //вкл круг
         calibrButtonsBuf[5] = 0x03;
         calibrButtonsBuf[7] = 0x00;
         Serial1.write(calibrButtonsBuf, 8);
+        while(Serial1.read() != 0x4B);
 
         //вкл прессы
         calibrButtonsBuf[5] = 0x04;
         calibrButtonsBuf[7] = 0x00;
         Serial1.write(calibrButtonsBuf, 8);
+        while(Serial1.read() != 0x4B);
 
         //вкл нож
         calibrButtonsBuf[5] = 0x05;
         calibrButtonsBuf[7] = 0x00;
         Serial1.write(calibrButtonsBuf, 8);
+        while(Serial1.read() != 0x4B);
 
         //вкл разгруз
         calibrButtonsBuf[5] = 0x06;
         calibrButtonsBuf[7] = 0x00;
         Serial1.write(calibrButtonsBuf, 8);
+        while(Serial1.read() != 0x4B);
 
         //вкл ТЭНы
         calibrButtonsBuf[5] = 0x07;
         calibrButtonsBuf[7] = 0x00;
         Serial1.write(calibrButtonsBuf, 8);
-        
+        while(Serial1.read() != 0x4B);
       }
       break;
     
     case 0x02: // нажали на кнопку "вкл/выкл объём"
-      calibrVolume = inputBuf[3];
+      calibrateVolumeFlag = inputBuf[4];
+
+      if(calibrateVolumeFlag){
+        digitalWrite(DOSE_ENABLE, LOW);
+      } else {
+        digitalWrite(DOSE_ENABLE, HIGH);
+      }
       if(DEBUG){
         Serial.print("calibrVolume: ");
-        Serial.println(calibrVolume);
+        Serial.println(calibrateVolumeFlag);
       }
       break;
     
     case 0x03: // нажали на кнопку "вкл/выкл круг"
-      calibrDisk = inputBuf[3];
+      calibrDisk = inputBuf[4];
       if(DEBUG){
         Serial.print("calibrDisk: ");
         Serial.println(calibrDisk);
       }
       break;
 
-    case 0x04: // нажали на кнопку "вкл/выкл прессы"
-      calibrPress = inputBuf[3];
+    case 0x04: // нажали на кнопку "вкл/выкл узлы"
+      calibrPosition = inputBuf[4];
       if(DEBUG){
-        Serial.print("calibrPress: ");
-        Serial.println(calibrPress);
+        Serial.print("calibrPosition: ");
+        Serial.println(calibrPosition);
       }
       break;
 
-    case 0x05: // нажали на кнопку "вкл/выкл нож"
-      calibrKnife = inputBuf[3];
-      if(DEBUG){
-        Serial.print("calibrKnife: ");
-        Serial.println(calibrKnife);
-      }
-      break;
-
-    case 0x06:  // нажали на кнопку "вкл/выкл разгруз"
-      calibrRazgruz = inputBuf[3];
-      if(DEBUG){
-        Serial.print("calibrRazgruz: ");
-        Serial.println(calibrRazgruz);
-      }
-      break;
-
-    case 0x07: // нажали на кнопку "вкл/выкл ТЭНы"
-      calibrHeaters = inputBuf[3];
+    case 0x05: // нажали на кнопку "вкл/выкл ТЭНы"
+      calibrHeaters = inputBuf[4];
       if(DEBUG){
         Serial.print("calibrHeaters");
         Serial.println(calibrHeaters);
       }
+      break;
+
+    case 0x07: // нажата кнопка "начать калибовку"
+
       break;
 
     default:
@@ -669,74 +727,118 @@ void cylinders() {  // VP25xx
 
   solenoidNum = inputBuf[4];
   switch (inputBuf[1]) {
-    case 0x00:  //голова сливок
+    case 0x01:  //голова сливок
       digitalWrite(SOLENOID_SWITCH1, inputBuf[4]);
-      cylinderState[0] = inputBuf[4];                  //запоминаем состояние цилиндра
-      break;
-    case 0x01:  //голова страчателлы
-      digitalWrite(SOLENOID_SWITCH2, inputBuf[4]);
       cylinderState[1] = inputBuf[4];                  //запоминаем состояние цилиндра
+      
+      //отправка состояния кнопки на экран
+      sendCylinderIconState(inputBuf[1], inputBuf[4]);
       break;
-    case 0x02:  //форсунка пресс-форсунки
-      digitalWrite(SOLENOID_SWITCH3, inputBuf[4]);
+
+    case 0x02:  //голова страчателлы
+      digitalWrite(SOLENOID_SWITCH2, inputBuf[4]);
       cylinderState[2] = inputBuf[4];                  //запоминаем состояние цилиндра
+      
+      //отправка состояния кнопки на экран
+      sendCylinderIconState(inputBuf[1], inputBuf[4]);
       break;
+
     case 0x03:  //подставка
+      if(cylinderState[11] == 1){
+        digitalWrite(SOLENOID_SWITCH3, inputBuf[4]);
+        cylinderState[3] = inputBuf[4];                  //запоминаем состояние цилиндра
+      
+        //отправка состояния кнопки на экран
+        sendCylinderIconState(inputBuf[1], inputBuf[4]);
+      }
+      break;
+
+    case 0x04:  //форсунка пресс-форсунки
       digitalWrite(SOLENOID_SWITCH4, inputBuf[4]);
-      cylinderState[3] = inputBuf[4];                  //запоминаем состояние цилиндра
-      break;
-    case 0x04:  //пресс-форсунка
-      digitalWrite(SOLENOID_SWITCH5, inputBuf[4]);
       cylinderState[4] = inputBuf[4];                  //запоминаем состояние цилиндра
+      
+      //отправка состояния кнопки на экран
+      sendCylinderIconState(inputBuf[1], inputBuf[4]);
       break;
-    case 0x05:  //цилиндр страчателлы
-    ///!!! проверить состояния цилиндров и цилиндрСтэйт
-      if(cylinderState[2] && !cylinderState[1]){      //цилиндр срабатвает либо в бункер, либо в открытую форсунку
+
+    case 0x05:  //пресс-форсунка
+      digitalWrite(SOLENOID_SWITCH5, inputBuf[4]);
+      cylinderState[5] = inputBuf[4];                  //запоминаем состояние цилиндра
+      
+      //отправка состояния кнопки на экран
+      sendCylinderIconState(inputBuf[1], inputBuf[4]);
+      break;
+
+    case 0x06:  //цилиндр страчателлы
+      if(cylinderState[2] == 0 || cylinderState[4] == 0){ //голова страчателлы в бункер или открытую форсунку
         digitalWrite(SOLENOID_SWITCH6, inputBuf[4]);
-        cylinderState[5] = inputBuf[4];                  //запоминаем состояние цилиндра
-      }
-      break;
-    case 0x06:  //цилиндр сливок
-        ///!!! проверить состояния цилиндров и цилиндрСтэйт
-      if(cylinderState[2] && !cylinderState[0]){      //цилиндр срабатвает либо в бункер, либо в открытую форсунку
-        digitalWrite(SOLENOID_SWITCH7, inputBuf[4]);
         cylinderState[6] = inputBuf[4];                  //запоминаем состояние цилиндра
+      
+        //отправка состояния кнопки на экран
+        sendCylinderIconState(inputBuf[1], inputBuf[4]);
       }
       break;
-    case 0x07:  //разгрузка
-      if(!cylinderState[2]){
-        digitalWrite(SOLENOID_SWITCH8, inputBuf[4]);
+
+    case 0x07:  //цилиндр сливок
+      if(cylinderState[1] == 0 || cylinderState[4] == 0){      //цилиндр срабатвает либо в бункер, либо в открытую форсунку
+        digitalWrite(SOLENOID_SWITCH7, inputBuf[4]);
         cylinderState[7] = inputBuf[4];                  //запоминаем состояние цилиндра
-      } else {
-        digitalWrite(SOLENOID_SWITCH3, LOW);             //сначала убираем подставку
-        cylinderState[2] = 0;                            //запоминаем состояние цилиндра
-        digitalWrite(SOLENOID_SWITCH8, inputBuf[4]);
-        cylinderState[7] = inputBuf[4];                  //запоминаем состояние цилиндра
+      
+        //отправка состояния кнопки на экран
+        sendCylinderIconState(inputBuf[1], inputBuf[4]);
       }
       break;
-    case 0x08:  //редуктор
-      //проверяем датчики левого/правого прессов и ножа от центра
-      if(digitalRead(SOLENOID_SENSOR9) && digitalRead(SOLENOID_SENSOR10) && digitalRead(SOLENOID_SENSOR12)){
-        digitalWrite(SOLENOID_SWITCH9, inputBuf[4]);
+
+    case 0x08: //правый пресс
+      if(cylinderState[10] == 0){   //проверяем нижний датчик редуктора
+        digitalWrite(SOLENOID_SWITCH8, inputBuf[4]);
         cylinderState[8] = inputBuf[4];                  //запоминаем состояние цилиндра
+        
+        //отправка состояния кнопки на экран
+        sendCylinderIconState(inputBuf[1], inputBuf[4]);
       }
       break;
+
     case 0x09: //левый пресс
-      if(digitalRead(SOLENOID_SENSOR2)){   //проверяем нижний датчик редуктора  
-        digitalWrite(SOLENOID_SWITCH10, inputBuf[4]);
+      if(cylinderState[10] == 0){   //проверяем нижний датчик редуктора  
+        digitalWrite(SOLENOID_SWITCH9, inputBuf[4]);
         cylinderState[9] = inputBuf[4];                  //запоминаем состояние цилиндра
+      
+        //отправка состояния кнопки на экран
+        sendCylinderIconState(inputBuf[1], inputBuf[4]);
       }
       break;
-    case 0x10: //правый пресс
-      if(digitalRead(SOLENOID_SENSOR2)){   //проверяем нижний датчик редуктора
-        digitalWrite(SOLENOID_SWITCH11, inputBuf[4]);
+
+    case 0x10:  //редуктор
+      //!!!!!! ДОПИСАТЬ КРУЧЕНИЕ ПРИ ОПУСКАНИИ
+      //проверяем датчики левого/правого прессов и ножа от центра
+      if(cylinderState[9] == 0 && cylinderState[8] == 0 && cylinderState[12] == 0){
+        //digitalRead(SOLENOID_SENSOR9) && digitalRead(SOLENOID_SENSOR10) && digitalRead(SOLENOID_SENSOR12)){
+        digitalWrite(SOLENOID_SWITCH10, inputBuf[4]);
         cylinderState[10] = inputBuf[4];                  //запоминаем состояние цилиндра
+    
+        //отправка состояния кнопки на экран
+        sendCylinderIconState(inputBuf[1], inputBuf[4]);
       }
       break;
-    case 0x11: //нож
-      if(digitalRead(SOLENOID_SENSOR2)){   //проверяем нижний датчик редуктора
+
+    case 0x11:  //разгрузка
+      if(cylinderState[3] == 0){    // подставка вверху 
+        digitalWrite(SOLENOID_SWITCH11, inputBuf[4]);
+        cylinderState[11] = inputBuf[4];                  //запоминаем состояние цилиндра разгрузки
+     
+        //отправка состояния кнопки на экран
+        sendCylinderIconState(inputBuf[1], inputBuf[4]);
+      }
+      break;
+
+    case 0x12: //нож
+      if(cylinderState[10] == 0){   //проверяем нижний датчик редуктора
         digitalWrite(SOLENOID_SWITCH12, inputBuf[4]);
-        cylinderState[11] = inputBuf[4];                  //запоминаем состояние цилиндра
+        cylinderState[12] = inputBuf[4];                  //запоминаем состояние цилиндра
+      
+        //отправка состояния кнопки на экран
+        sendCylinderIconState(inputBuf[1], inputBuf[4]);
       }
       break;
 
@@ -750,6 +852,46 @@ void cylinders() {  // VP25xx
       break;
   }
   changeSSLight = 1;
+}
+
+// ============== ручное включение мотора RE из настроек ================
+void motorRE(){   //27xx
+  switch (inputBuf[1]) {
+    case 0x00:  //вкл/выкл
+      if(cylinderState[5] == 0 && motorREDir == 1){}
+      motorREON = inputBuf[4]; 
+
+      if(DEBUG){
+        Serial.print("motorRE: ");
+        Serial.println(inputBuf[4]);
+      }
+      break;
+
+    case 0x02:
+    motorRESpeed = (inputBuf[3] << 8) | inputBuf[4];
+      if(DEBUG){
+        Serial.print("speed: ");
+        Serial.println(motorRESpeed);
+      }
+      break;
+
+    case 0x03:
+      motorREDir = inputBuf[4];
+      if(DEBUG){
+        Serial.print("direction: ");
+        Serial.println(inputBuf[4]);
+      }
+      break;
+
+    default:
+      showError();
+      if (DEBUG) {
+        Serial.print("motorRE() address unknown: ");
+        Serial.println(inputBuf[1], HEX);
+        //showBuffer(inputBuf);
+      }
+      break;
+  }
 }
 
 // ============== адреса параметров машины ==================
@@ -896,7 +1038,7 @@ void calibration() {
   ssStateBuf[7] = ssState1;
   Serial1.write(ssStateBuf, 8);
 
-  ssState2 = digitalRead(SOLENOID_SENSOR2);
+  ssState2 = digitalRead(SOLENOID_SENSOR11);
   ssStateBuf[5] = 0x01;
   ssStateBuf[7] = ssState2;
   Serial1.write(ssStateBuf, 8);
@@ -965,36 +1107,65 @@ void operatingMode(byte i) {
 
 // ============== загрузка параметров в экран ================
 void setDwin() {
-  //отправить параметры машины на экран
-  Serial.println("GOT setDwin()");
-  sendUserTemp();  //  загрузка значения температуры
-  delay(50);
-  sendTime();
-  delay(50);
-  sendRotation();
-  delay(50);
-  sendMassa();
-  delay(50);
-  sendCream();
-  delay(50);
-  sendWashCycleSt1();
-  delay(50);
-  sendWashCycleCr1();
-  delay(50);
-  sendWashCycleSt2();
-  delay(50);
-  sendWashCycleCr2();
-  delay(50);
-  sendWashCycleSt3();
-  delay(50);  
-  sendWashCycleCr3();
+    sendUserTemp();                 //  загрузка значения температуры
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
 
-  //отправить состояния датчиов
-  checkHeaters();
-  checkCoverSensor();
-  checkPressureSensore();
+    sendTime();                     //  отправка времени пайки
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
 
-  //!!!отобразить в настройках включенные цилинды!!!
+    sendRotation();                 //  отправка количества оборотов
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
+    
+    sendMassa();                    //  отправка объёма
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
+    
+    sendCream();                    //  отправка %сливок
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
+    
+    //  отправка значений переменных циклов
+    sendWashCycleSt1();
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
+    sendWashCycleCr1();
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
+    sendWashCycleSt2();
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
+    sendWashCycleCr2();
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
+    sendWashCycleSt3();
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
+    sendWashCycleCr3();
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
+
+    // отправка значений на экран настоек
+    sendMotorRESpeed();
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
+
+    //отправить состояния датчиов
+    checkHeaters();
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
+    checkCoverSensor();
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
+    checkPressureSensore();
+    while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
+
+    //!!!отобразить в настройках включенные цилинды!!!
+
+    //отобразить на экране включенные цилиндры 
+    Serial.println("Turned cylinders: ");
+    for(byte i = 1; i < 13; i++){
+      if(cylinderState[i] > 0){
+        cylinderIconBuf[5] = i;
+        cylinderIconBuf[7] = cylinderState[i];
+        Serial1.write(cylinderIconBuf, 8);
+        while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
+        
+        if(DEBUG){
+          Serial.print(cylinderIconBuf[5]);
+          Serial.print(" ");
+          Serial.println(cylinderIconBuf[7]);
+        }
+      }
+    }
 }
 
 
@@ -1011,6 +1182,10 @@ void sendUserTemp() {
   outputUserTempBuf[8] = userTempCharArray[1];
   outputUserTempBuf[9] = userTempCharArray[0];
   Serial1.write(outputUserTempBuf, 10);
+
+  if(DEBUG){
+    Serial.println(__func__);
+  }
 }
 
 // ============== отправка левой температуры ================
@@ -1057,6 +1232,10 @@ void sendTime() {
   outputTimeBuf[8] = userTimeCharArray[1];
   outputTimeBuf[9] = userTimeCharArray[0];
   Serial1.write(outputTimeBuf, 10);
+
+  if(DEBUG){
+    Serial.println(__func__);
+  }
 }
 
 // ============== отправка количества оборотов на экран =================
@@ -1066,6 +1245,7 @@ void sendRotation() {
   Serial1.write(outputRevolBuf, 8);
 
   if (DEBUG) {
+
     Serial.print("rotation = ");
     Serial.println(rotation);
   }
@@ -1095,6 +1275,18 @@ void sendCream() {
   }
 }
 
+// ============== отправка скорости мотора RE на экран ===================
+void sendMotorRESpeed(){
+  outputMotorRESpeed[6] = highByte(motorRESpeed);
+  outputMotorRESpeed[7] = lowByte(motorRESpeed);
+  Serial1.write(outputMotorRESpeed, 8);
+
+  if (DEBUG) {
+    Serial.print("motorRESpeed = ");
+    Serial.println(motorRESpeed);
+  }
+}
+
 // ============== отображает предупреждение на экране =======
 void showError() {
   showErrorBuf[7] = 1;
@@ -1113,7 +1305,7 @@ void sendWashCycleSt1() {
   }
 }
 
-// ============== отправка количества циклов сливок на экране 1 =======
+// ============== отправка количества циклов сливок на экране 1 ============
 void sendWashCycleCr1() {
   washCycleCr1Buf[6] = highByte(washCycleCr1);
   washCycleCr1Buf[7] = lowByte(washCycleCr1);
@@ -1137,7 +1329,7 @@ void sendWashCycleSt2() {
   }
 }
 
-// ============== отправка количества циклов сливок на экране 2 =======
+// ============== отправка количества циклов сливок на экране 2 ============
 void sendWashCycleCr2() {
   washCycleCr2Buf[6] = highByte(washCycleCr2);
   washCycleCr2Buf[7] = lowByte(washCycleCr2);
@@ -1149,7 +1341,7 @@ void sendWashCycleCr2() {
   }
 }
 
-// ============== отправка количества циклов страчателлы на экране 1 =======
+// ============== отправка количества циклов страчателлы на экране 3 =======
 void sendWashCycleSt3() {
   washCycleSt3Buf[6] = highByte(washCycleSt3);
   washCycleSt3Buf[7] = lowByte(washCycleSt3);
@@ -1161,7 +1353,7 @@ void sendWashCycleSt3() {
   }
 }
 
-// ============== отправка количества циклов сливок на экране 1 =======
+// ============== отправка количества циклов сливок на экране 3 ============
 void sendWashCycleCr3() {
   washCycleCr3Buf[6] = highByte(washCycleCr3);
   washCycleCr3Buf[7] = lowByte(washCycleCr3);
@@ -1173,6 +1365,115 @@ void sendWashCycleCr3() {
   }
 }
 
+// ============== запуск цикла 1 ============
+void cycle1(){
+  // запуск прокачки цилиндров страчателлы и сливок 
+  switch(cycle1Case){
+    case 0:
+      cycleIconTimer = millis();
+      Serial1.write(cycleIconLeftBuff, 8);
+      Serial1.write(cycleIconRightBuff, 8);
+      cycle1Case++;
+      Serial.println("cycle1Case0");
+      break;
+
+    case 1:
+      if(millis() - cycleIconTimer > 1000){
+        cycleIconLeftBuff[7] = 1;
+        cycleIconRightBuff[7] = 1;
+        Serial1.write(cycleIconLeftBuff, 8);
+        Serial1.write(cycleIconRightBuff, 8);
+        cycle1Case++;
+        cycleIconTimer = millis();
+            
+        Serial.println("cycle1Case1");
+      }
+      break;
+
+    case 2:
+      if(millis() - cycleIconTimer > 1000){
+        cycleIconLeftBuff[7] = 2;
+        cycleIconRightBuff[7] = 2;
+        Serial1.write(cycleIconLeftBuff, 8);
+        Serial1.write(cycleIconRightBuff, 8);
+        cycle1Case++;
+        cycleIconTimer = millis();
+        
+        Serial.println("cycle1Case2");
+      }
+      break;
+
+    case 3:
+      if(millis() - cycleIconTimer > 1000){
+        cycleIconLeftBuff[7] = 3;
+        cycleIconRightBuff[7] = 3;
+        Serial1.write(cycleIconLeftBuff, 8);
+        Serial1.write(cycleIconRightBuff, 8);
+        cycle1Case++;
+        Serial.println("cycle1Case2");
+
+        cycleIconTimer = millis();
+      }
+      break;
+
+    case 4:
+      if(millis() - cycleIconTimer > 1000){
+        cycleIconLeftBuff[7] = 4;
+        cycleIconRightBuff[7] = 4;
+        Serial1.write(cycleIconLeftBuff, 8);
+        Serial1.write(cycleIconRightBuff, 8);
+        cycle1Case++;
+        cycleIconTimer = millis();
+      }
+      break;
+
+    case 5:
+      if(millis() - cycleIconTimer > 1000){
+        cycleIconLeftBuff[7] = 5;
+        cycleIconRightBuff[7] = 5;
+        Serial1.write(cycleIconLeftBuff, 8);
+        Serial1.write(cycleIconRightBuff, 8);
+        cycle1Case = 0;
+        doCycle = 0;
+
+        cycleIconLeftBuff[7] = 1;
+        cycleIconRightBuff[7] = 1;
+      }
+      break;
+
+
+    default:
+      cycle1Case = 0;
+      doCycle = 0;
+      if(DEBUG){
+        Serial.println("cycle1() ERROR!");
+      }
+      break;
+  }
+
+  Serial.println(cycle1Case);
+  if(DEBUG){
+    //Serial.println(__func__);
+  }
+}
+
+// ============== запуск цикла 2 ============
+void cycle2(){
+    // запуск прокачки цилиндров страчателлы и сливок 
+    doCycle = 0;
+    if(DEBUG){
+      Serial.println(__func__);
+    }
+}
+
+// ============== запуск цикла 3 ============
+void cycle3(){
+    // запуск прокачки цилиндров страчателлы и сливок 
+    doCycle = 0;
+    if(DEBUG){
+      Serial.println(__func__);
+    }
+}
 
 // ======================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =========================
 // ============== отображение содержимого буффера в Serial ==================
@@ -1192,8 +1493,16 @@ void printByte(byte c) {
 
 // ============== пересчет общей массы бурраты и процента сливок ==================
 void changeMass() {
-  STmassa = massa * (100 - cream);  // корректируем координату назначения датчика страчателлы (общая масса умноженная на коэффициент объема страчателлы, умноженная на процент страчателлы)
-  CRmassa = massa * cream;        // корректируем координату назначения датчика сливок (общая масса умноженная на коэффициент объема сливок, умноженная на процент сливок)
+  //оборот = 400 полушагов, плодадь цилиндра страчателлы = 2732,585. шаг резьбы 2мм, 
+  //5000(полушагов = 50 на экране)/400 (полушагов)= 12,5 оборотов * 2 = 25мм.
+  //2732.585 * 25 / 1000 = 68.314 мл (в 5000 полушагах)
+  //50 / 68.314 = 0.732 - коэффециент 
+  STmassa = int(massa * (100 - cream) * 0.732);  // корректируем координату назначения датчика страчателлы (общая масса умноженная на коэффициент объема страчателлы, умноженная на процент страчателлы)
+  
+  //площадь цилиндра сливок = 660.185 мм2
+  //16.5 мл в 5000
+  //коффециент сливок 3
+  CRmassa = massa * cream * 3 ;        // корректируем координату назначения датчика сливок (общая масса умноженная на коэффициент объема сливок, умноженная на процент сливок)
 
   if (STInMotionFlag) {  // если в процессе движения мотора страчателлы обновилась масса или процент, корректируем текущую координату датчика страчателлы
     if (stepsForST > 0) {
@@ -1219,10 +1528,21 @@ void changeMass() {
   CRInMotionFlag = 1;                    // включаем флаг для передвижения в новую координату датчика сливок
 }
 
+// ============== отправялем состояние кнопки на экран ==========
+void sendCylinderIconState(byte addr, byte state){
+  cylinderIconBuf[5] = addr;
+  cylinderIconBuf[7] = state;
+  Serial1.write(cylinderIconBuf, 8);
+}
+
 /*// TODO ///
 
 1. сверить все адреса с адресами экрана
 2. пересмотреть makeResponce()
 3. дописать выходы из циклов при нажатии на 1110/1112/1114
-
+4. дописать проверку по времени срабатывания while в setDwin() - на случай, если повиснет сообщение/оборвётся провод
+5. исправить название в calibrContor
+6. удалить из калибровки прессы/нож/разгрузку - сделать одну - стартовое положение цилиндров
+7. написать кнопку "включение/выключение пароля"
+8. поменять цвет кнопок 
 */

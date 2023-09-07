@@ -429,13 +429,13 @@ void calcMassaCR() {
 void displaySolenoidSensorLight(byte solenoid) {
   /* switch (solenoid){
     case(0x00): // датчики левого пресса
-        if(ssState1 != digitalRead(SOLENOID_SENSOR1)){
+        if(ssState1 != digitalRead(SOLENOID_SENSOR10)){
           ssState1 = !ssState1;
           ssStateBuf[5] = 0x00;
           ssStateBuf[7] = ssState1;
           Serial1.write(ssStateBuf, 8);
         };
-        if(ssState2 != digitalRead(SOLENOID_SENSOR2)){
+        if(ssState2 != digitalRead(SOLENOID_SENSOR11)){
           ssState2 = !ssState2;
           ssStateBuf[5] = 0x00;
           ssStateBuf[7] = ssState1;
@@ -499,7 +499,7 @@ void displaySolenoidSensorLight(byte solenoid) {
     //changeSSLight = 0;
   }
   //датчик редкутора вверх
-   if (ssState7 != digitalRead(SOLENOID_SENSOR1)) {
+   if (ssState7 != digitalRead(SOLENOID_SENSOR10)) {
     ssStateBuf[5] = 0x06;
     ssStateBuf[7] = ssState7;
     Serial1.write(ssStateBuf, 8);
@@ -644,9 +644,9 @@ void burrataButton() {
 
     case 5:   //опускам пресс-форсунку и поднимаем редуктор
 
-      if (digitalRead(SOLENOID_SENSOR1) == 0 && digitalRead(SOLENOID_SENSOR7) == 1) {  //если пресс-форсунка опущенаесли и редуктор поднят - идём дальше
+      if (digitalRead(SOLENOID_SENSOR12) == 0 && digitalRead(SOLENOID_SENSOR7) == 1) {  //если пресс-форсунка опущенаесли и редуктор поднят - идём дальше
         digitalWrite(SOLENOID_SWITCH5, HIGH);  //опускем пресс-форсункe
-        cylinderState[4] = 1;                  //запоминаем состояние цилиндра
+        cylinderState[5] = 1;                  //запоминаем состояние цилиндра
         burrataButtonCase++;
       };
       break;
@@ -654,9 +654,9 @@ void burrataButton() {
     case 6:   //проверяем датчик пресс-форсунки низ
         if(digitalRead(SOLENOID_SENSOR7)){      //проверяем датчик пресс-форсунки низ
           digitalWrite(SOLENOID_SWITCH6, LOW);   //опускаем цилиндр страчателлы
-          cylinderState[5] = 0;                  //запоминаем состояние цилиндра
-          digitalWrite(SOLENOID_SWITCH7, LOW);   //опускаем цилиндр сливок        
           cylinderState[6] = 0;                  //запоминаем состояние цилиндра
+          digitalWrite(SOLENOID_SWITCH7, LOW);   //опускаем цилиндр сливок        
+          cylinderState[7] = 0;                  //запоминаем состояние цилиндра
           burrataButtonCase++;
         }
       break;
@@ -665,20 +665,20 @@ void burrataButton() {
     case 7:   //дозируем
       if (digitalRead(SOLENOID_SENSOR4) == LOW && sensorFlag[1] == 0) { //страчателла
         digitalWrite(SOLENOID_SWITCH3, HIGH); //форсунка вкл
-        cylinderState[2] = 1;                  //запоминаем состояние цилиндра
+        cylinderState[3] = 1;                  //запоминаем состояние цилиндра
         digitalWrite(SOLENOID_SWITCH2, HIGH); //голова страч
-        cylinderState[1] = 1;                  //запоминаем состояние цилиндра
+        cylinderState[2] = 1;                  //запоминаем состояние цилиндра
         digitalWrite(SOLENOID_SWITCH6, HIGH); //страч
-        cylinderState[5] = 1;                  //запоминаем состояние цилиндра
+        cylinderState[6] = 1;                  //запоминаем состояние цилиндра
         sensorFlag[1] = 1;
       }
       if (digitalRead(SOLENOID_SENSOR6) == LOW && sensorFlag[2] == 0) {
         digitalWrite(SOLENOID_SWITCH3, HIGH); //форсунка вкл
-        cylinderState[2] = 1;                  //запоминаем состояние цилиндра
+        cylinderState[3] = 1;                  //запоминаем состояние цилиндра
         digitalWrite(SOLENOID_SWITCH1, HIGH); //голова сливок
-        cylinderState[0] = 1;                  //запоминаем состояние цилиндра
+        cylinderState[1] = 1;                  //запоминаем состояние цилиндра
         digitalWrite(SOLENOID_SWITCH7, HIGH); //сливки
-        cylinderState[6] = 1;                  //запоминаем состояние цилиндра
+        cylinderState[7] = 1;                  //запоминаем состояние цилиндра
         sensorFlag[2] = 1;
       }
       if (sensorFlag[1] == 1 && sensorFlag[2] == 1) {
@@ -691,11 +691,11 @@ void burrataButton() {
     case 8:   //ждём когда вернуться цилиндры страчателлы и сливок обратно
       if (!digitalRead(SOLENOID_SENSOR3) && !digitalRead(SOLENOID_SENSOR5)) {
           digitalWrite(SOLENOID_SWITCH3, LOW); //форсунка выкл
-          cylinderState[2] = 0;                  //запоминаем состояние цилиндра
+          cylinderState[3] = 0;                  //запоминаем состояние цилиндра
           digitalWrite(SOLENOID_SWITCH2, LOW); //голова страч
-          cylinderState[1] = 0;                  //запоминаем состояние цилиндра
+          cylinderState[2] = 0;                  //запоминаем состояние цилиндра
           digitalWrite(SOLENOID_SWITCH1, LOW); //голова сливок
-          cylinderState[0] = 0;                  //запоминаем состояние цилиндра
+          cylinderState[1] = 0;                  //запоминаем состояние цилиндра
         burrataButtonCase++;
         if (DEBUG) {
           Serial.print("burrataButtonCase case: ");
@@ -706,8 +706,8 @@ void burrataButton() {
 
 
     case 9:   //опускаем (редуктор)
-      digitalWrite(SOLENOID_SWITCH9, LOW);  //опускаем редуктор
-      cylinderState[8] = 0;                  //запоминаем состояние цилиндра
+      digitalWrite(SOLENOID_SWITCH10, LOW);  //опускаем редуктор
+      cylinderState[10] = 0;                  //запоминаем состояние редуктора
 
       burrataButtonCase++;
 
@@ -723,7 +723,7 @@ void burrataButton() {
         }
       }
 
-      if (checkStepFlagRE == 4000 && !digitalRead(SOLENOID_SENSOR2)) {
+      if (checkStepFlagRE == 4000 && !digitalRead(SOLENOID_SENSOR11)) {
         burrataButtonCase++;
         Serial.println(checkStepFlagRE);
         checkStepFlagRE = 0;
@@ -731,10 +731,10 @@ void burrataButton() {
       break;
 
     case 11:  //сводим левый/правый пресс
-      digitalWrite(SOLENOID_SWITCH10, HIGH);
+      digitalWrite(SOLENOID_SWITCH9, HIGH);   //левый пресс!!!
       cylinderState[9] = 1;                  //запоминаем состояние цилиндра
-      digitalWrite(SOLENOID_SWITCH11, HIGH);
-      cylinderState[10] = 1;                  //запоминаем состояние цилиндра
+      digitalWrite(SOLENOID_SWITCH8, HIGH); //правый пресс!!!
+      cylinderState[8] = 1;                  //запоминаем состояние цилиндра
       //delay(1000);
       burrataButtonCase++;
       break;
@@ -755,7 +755,7 @@ void burrataButton() {
     
     case 14:  // выстреливаем нож
       digitalWrite(SOLENOID_SWITCH12, HIGH);
-      cylinderState[11] = 1;                  //запоминаем состояние цилиндра
+      cylinderState[12] = 1;                  //запоминаем состояние цилиндра
       pressTimer = millis();
       burrataButtonCase++;
       break;
@@ -767,13 +767,13 @@ void burrataButton() {
       break;
 
     case 16:  // ждём пока нож доедет до датчика в цнетре и убираем нож обратно
-      if(!digitalRead(SOLENOID_SENSOR13) ){ // датчик ножа в центре
+      if(!digitalRead(SOLENOID_SENSOR13) ){     // датчик ножа в центре
         digitalWrite(SOLENOID_SWITCH12, LOW);   //отводим нож
-        cylinderState[11] = 0;                  //запоминаем состояние цилиндра
-        digitalWrite(SOLENOID_SWITCH10, LOW);   //пресс левый отводим
-        cylinderState[9] = 0;                  //запоминаем состояние цилиндра
-        digitalWrite(SOLENOID_SWITCH11, LOW);   //пресс правый отводим
-        cylinderState[10] = 0;                  //запоминаем состояние цилиндра
+        cylinderState[12] = 0;                  //запоминаем состояние цилиндра
+        digitalWrite(SOLENOID_SWITCH9, LOW);   //пресс левый отводим
+        cylinderState[9] = 0;                   //запоминаем состояние цилиндра
+        digitalWrite(SOLENOID_SWITCH8, LOW);   //пресс правый отводим
+        cylinderState[8] = 0;                  //запоминаем состояние цилиндра
 
         burrataButtonCase++;
       }
@@ -786,21 +786,21 @@ void burrataButton() {
       break;
 
     case 18:  //поднимаем редуктор,
-      digitalWrite(SOLENOID_SWITCH9, HIGH);  // поднимаем редуктор
-      cylinderState[8] = 1;                  //запоминаем состояние цилиндра
+      digitalWrite(SOLENOID_SWITCH10, HIGH);  // поднимаем редуктор
+      cylinderState[10] = 1;                  //запоминаем состояние цилиндра
       digitalWrite(SOLENOID_SWITCH5, LOW);   // поднимаем пресс-форсунку
-      cylinderState[4] = 0;                  //запоминаем состояние цилиндра
+      cylinderState[5] = 0;                  //запоминаем состояние цилиндра
       digitalWrite(SOLENOID_SWITCH4, LOW);   // опускаем чашечку
-      cylinderState[3] = 0;                  //запоминаем состояние цилиндра
+      cylinderState[4] = 0;                  //запоминаем состояние цилиндра
 
-      if (!digitalRead(SOLENOID_SENSOR1)) {
+      if (!digitalRead(SOLENOID_SENSOR10)) {
         burrataButtonCase++;   
       }
       break;
 
     case 19:
-      digitalWrite(SOLENOID_SWITCH8, HIGH);  // опускаем 
-      cylinderState[7] = 1;                  //запоминаем состояние цилиндра
+      digitalWrite(SOLENOID_SWITCH11, HIGH);  // опускаем 
+      cylinderState[11] = 1;                  //запоминаем состояние цилиндра
 
       pressTimer = millis();
       burrataButtonCase++;
@@ -813,8 +813,8 @@ void burrataButton() {
       break;
 
     case 21:  // поднимаем разгрузку
-      digitalWrite(SOLENOID_SWITCH8, LOW);
-      cylinderState[7] = 0;                  //запоминаем состояние цилиндра
+      digitalWrite(SOLENOID_SWITCH11, LOW);
+      cylinderState[11] = 0;                  //запоминаем состояние цилиндра
       if(!digitalRead(SOLENOID_SENSOR14)){
         burrataButtonCase++;
       }
@@ -822,7 +822,7 @@ void burrataButton() {
 
     case 22:  // поднимаем чашечку
       digitalWrite(SOLENOID_SWITCH4, HIGH);  
-      cylinderState[3] = 0;                  //запоминаем состояние цилиндра 
+      cylinderState[4] = 0;                  //запоминаем состояние цилиндра 
       burrataButtonCase++;
       break;
 
@@ -957,9 +957,8 @@ void rotateDiskButton() {
 
 // нажата кнопка включения масса
 void straciatellaButton() {
-
-  switch (straciatellaButtonCase) {
-    case 0:  // отправляем информацию на экран
+  /*
+  case 0:  // отправляем информацию на экран
       //straciatellaButtonFlag = 1;
       strachiatellaButtonBuf[7] = 1;
       Serial1.write(strachiatellaButtonBuf, 8); //включаем кнопку "масса" на экране
@@ -973,22 +972,43 @@ void straciatellaButton() {
       digitalWrite(DOSE_ENABLE, LOW);
       break;
 
+    default:
+        showError();
+        if (DEBUG) {
+          straciatellaButtonFlag = 0;
+          straciatellaButtonCase = 0;
+          Serial.print("straciatellaButton() error!  case:");
+          Serial.println(straciatellaButtonCase);
+        }
+      break;
+
+  */
+}
+
+void calibrateVolume(){
+  switch (calibrateVolumeCase) {
+    
+    case 0:
+      calibrateVolumeCase++;  // переходим в следующий кейс
+      digitalWrite(DOSE_ENABLE, LOW);
+      break;
+
     case 1:  // перемещаем подвижные датчики страчателлы и сливок до штоков цилиндров в верхнем положении
-      if (digitalRead(SOLENOID_SENSOR4) == HIGH) {
+      if (digitalRead(SOLENOID_SENSOR14) == HIGH) {
         if (micros() - stepTimerST >= 300) {
           stepTimerST = micros();
           makeST_CWR();  // вращаем мотор страчателлы по часовой
         }
       }
-      if (digitalRead(SOLENOID_SENSOR6) == HIGH) {
+      if (digitalRead(SOLENOID_SENSOR9) == HIGH) {
         if (micros() - stepTimerCR >= 300) {
           stepTimerCR = micros();
           makeCR_CWR();  // вращаем мотор сливок по часовой
           //Serial.println("making CR STEP");
         }
       }
-      if (digitalRead(SOLENOID_SENSOR4) == LOW && digitalRead(SOLENOID_SENSOR6) == LOW) {
-        straciatellaButtonCase++;  // переходим в следующий кейс
+      if (digitalRead(SOLENOID_SENSOR14) == LOW && digitalRead(SOLENOID_SENSOR9) == LOW) {
+        calibrateVolumeCase++;  // переходим в следующий кейс
         currentSTStep = 0;         // обнуляем текущуу координату датчика страчателлы
         currentCRStep = 0;         // обнуляем текущуу координату датчика сливок
         stepsForST = STmassa;      // корректируем кол-во полушагов для перемещения датчика страчателлы в нужную координату
@@ -1000,24 +1020,25 @@ void straciatellaButton() {
     case 2:  // включаем флаги перемещения датчика страчателлы и датчика сливок в нужные координаты
       STInMotionFlag = 1;
       CRInMotionFlag = 1;
-      straciatellaButtonCase++;  // переходим в следующий кейс
+      calibrateVolumeCase++;  // переходим в следующий кейс
       break;
 
     case 3:  // отправвляем информацию на экран
-      straciatellaButtonFlag = 0;  // изменение состояния кнопки "страчателла" на выкл
-      strachiatellaButtonBuf[7] = straciatellaButtonFlag;
-      Serial1.write(strachiatellaButtonBuf, 8);
-      digitalWrite(ILLUMINATION_OPTION3, LOW);  //включаем подсветку кнопки
-      straciatellaButtonCase = 0;  // обнуляем кейс
+      calibrateVolumeFlag = 0;  // изменение состояния кнопки "страчателла" на выкл
+      calibrateVolumeCase = 0;  // обнуляем кейс
+
+      calibrButtonsBuf[5] = 0x02;
+      calibrButtonsBuf[7] = calibrateVolumeFlag;
+      Serial1.write(calibrButtonsBuf, 8);      
       break;
       
     default:
         showError();
         if (DEBUG) {
-          straciatellaButtonFlag = 0;
-          straciatellaButtonCase = 0;
-          Serial.print("straciatellaButton() error!  case:");
-          Serial.println(straciatellaButtonCase);
+          Serial.print("calibrateVolume() error!  case:");
+          Serial.println(calibrateVolumeCase);
+          calibrateVolumeCase = 0;
+          calibrateVolumeFlag = 0;
         }
       break;
   }
@@ -1054,20 +1075,14 @@ void calibrate() {
     coverSensorState = 1;
   }
 
-  if (calibrVolume) {
-  }
+  /*if (calibrVolume) {
+  }*/
 
   if (calibrDisk) {
     rotateDiskButton();
   }
 
-  if (calibrPress) {
-  }
-
-  if (calibrKnife) {
-  }
-
-  if (calibrRazgruz) {
+  if (calibrPosition) {
   }
 
   if (calibrHeaters) {
