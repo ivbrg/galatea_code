@@ -112,20 +112,20 @@
   25 11 | 25    // нож
 
   *** адреса датчиков цилиндров 
-  26 00 | A0  ss1
-  26 01 | A1  ss2
-  26 02 | A2  ss3
-  26 03 | A3  ss4
-  26 04 | A4  ss5
-  26 05 | A5  ss6
-  26 06 | A6  ss7
-  26 07 | A7  ss8
-  26 08 | A8  ss9
-  26 09 | A9  ss10
-  26 0A | A10 ss11
-  26 0B | A11 ss12
-  26 0C | A12 ss13
-  26 0D | A13 ss14
+  26 00 | A0  ss1   - левый пресс от центра
+  26 01 | A1  ss2   - левый пресс в центре
+  26 02 | A2  ss3   - пресс-форсунка (низ)
+  26 03 | A3  ss4   - правый пресс от центра
+  26 04 | A4  ss5   - правый пресс в центре
+  26 05 | A5  ss6   - разгрузка низ
+  26 06 | A6  ss7   - нож от центра
+  26 07 | A7  ss8   - нож в центре
+  26 08 | A8  ss9   - подвижный датчик сливок
+  26 09 | A9  ss10  - неподвижный (верхний)  датчик сливок
+  26 0A | A10 ss11  - датчик редуктора верх
+  26 0B | A11 ss12  - датчик редуктора низ
+  26 0C | A12 ss13  - неподвижный датчик страчателлы
+  26 0D | A13 ss14  - подвижный датчик страчателлы
   
 
   *** адреса переменных экрана ****
@@ -353,16 +353,19 @@ void pressButton() {  // VP11xx
     case 0x10:  // кнопка "буррата"
       if (!straciatellaButtonFlag && !rotateDiskButtonFlag) {  //проверяем кнопки "шаг" и "оборот"
          
-        burrataButtonFlag = inputBuf[4];    //меняем флаг кнопки
-        burrataButtonBuf[7] = inputBuf[4];  //меняем буффер кнопки "буррата"
+        if(burrataButtonCase == 0){
+          burrataButtonFlag = inputBuf[4];    //меняем флаг кнопки
+          burrataButtonBuf[7] = inputBuf[4];  //меняем буффер кнопки "буррата"
+        }
         
         //отжимаем нопку на экране
+        /*
         if(!burrataButtonFlag){
           Serial1.write(burrataButtonBuf, 8);
           digitalWrite(ILLUMINATION_OPTION1, LOW);
           burrataButtonCase = 0;
         }
-
+        */
         if (DEBUG) {
           Serial.print("Got burrattaButton ");
           Serial.println(burrataButtonFlag);
@@ -373,25 +376,30 @@ void pressButton() {  // VP11xx
   
     case 0x12:  // кнопка "шаг"
       if (!straciatellaButtonFlag && !burrataButtonFlag) {  //проверяем кнопки "страчателла" и "буррата"
-        rotateDiskButtonFlag = inputBuf[4];
-        rotateDiskButtonBuf[7] = inputBuf[4];
 
         //отжимаем нопку на экране
-        if(!rotateDiskButtonFlag){
+        if(rotateDiskButtonCase == 0){
+          rotateDiskButtonFlag = inputBuf[4];
+          rotateDiskButtonBuf[7] = inputBuf[4];
+        }
+        /*
           Serial1.write(rotateDiskButtonBuf, 8);
-          digitalWrite(ILLUMINATION_OPTION2, LOW);
+          digitalWrite(ILLUMINATION_OPTION2, HIGH);
           rotateDiskButtonCase = 0;
+          */
         }
 
         if (DEBUG) {
           Serial.print("Got rotateDiskButtonFlag: ");
           Serial.println(rotateDiskButtonFlag);
         }
-      }
+      
       //если кнопку нажали в цикле выполнения программы, то завершаем выполнение 
+      /*
       if(rotateDiskButtonFlag && rotateDiskButtonCase != 0){
         rotateDiskButtonFlag = 0;
       }
+      */
       break;
 
     case 0x14:  //кнопка "масса"
@@ -671,7 +679,9 @@ void calibrContor() {  // VP21xx
       break;
     
     case 0x02: // нажали на кнопку "вкл/выкл объём"
-      calibrateVolumeFlag = inputBuf[4];
+      if(digitalRead(SOLENOID_SENSOR11) == 0 && digitalRead(SOLENOID_SENSOR13) == 0){
+        calibrateVolumeFlag = inputBuf[4];
+      }
 
       if(calibrateVolumeFlag){
         digitalWrite(DOSE_ENABLE, LOW);
@@ -812,7 +822,7 @@ void cylinders() {  // VP25xx
     case 0x10:  //редуктор
       //!!!!!! ДОПИСАТЬ КРУЧЕНИЕ ПРИ ОПУСКАНИИ
       //проверяем датчики левого/правого прессов и ножа от центра
-      if(cylinderState[9] == 0 && cylinderState[8] == 0 && cylinderState[12] == 0){
+      if(digitalRead(SOLENOID_SENSOR1) == 0 && digitalRead(SOLENOID_SENSOR4) == 0 && digitalRead(SOLENOID_SENSOR7) == 0){
         //digitalRead(SOLENOID_SENSOR9) && digitalRead(SOLENOID_SENSOR10) && digitalRead(SOLENOID_SENSOR12)){
         digitalWrite(SOLENOID_SWITCH10, inputBuf[4]);
         cylinderState[10] = inputBuf[4];                  //запоминаем состояние цилиндра
@@ -842,6 +852,10 @@ void cylinders() {  // VP25xx
       }
       break;
 
+    case 0x13:
+      checkSolenoidSensorsFlag = inputBuf[4];
+      break;
+
     default:
       showError();
       if (DEBUG) {
@@ -851,7 +865,6 @@ void cylinders() {  // VP25xx
       }
       break;
   }
-  changeSSLight = 1;
 }
 
 // ============== ручное включение мотора RE из настроек ================
@@ -1023,81 +1036,6 @@ void changeVar() {  // VP30xx
 
 
 
-/*/ ============== калибровка машины ==================
-void calibration() {
-  
-
-  byte allGood = 0x01;
-  byte allBad = 0x02;
-
-  byte calibrBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X00, 0X0, 0x0 };
-  byte ssBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X26, 0X00, 0X0, 0x0 };
-
-  ssState1 = digitalRead(SOLENOID_SENSOR1);
-  ssStateBuf[5] = 0x00;
-  ssStateBuf[7] = ssState1;
-  Serial1.write(ssStateBuf, 8);
-
-  ssState2 = digitalRead(SOLENOID_SENSOR11);
-  ssStateBuf[5] = 0x01;
-  ssStateBuf[7] = ssState2;
-  Serial1.write(ssStateBuf, 8);
-
-
-
-  calibrBuff[5] = 0x01;
-  calibrBuff[7] = allGood;
-  Serial1.write(calibrBuff, 8);
-  delay(100);
-
-  calibrBuff[5] = 0x02;
-  calibrBuff[7] = allGood;
-  Serial1.write(calibrBuff, 8);
-  delay(100);
-
-  calibrBuff[5] = 0x03;
-  calibrBuff[7] = allGood;
-  Serial1.write(calibrBuff, 8);
-  delay(100);
-
-  calibrBuff[5] = 0x04;
-  calibrBuff[7] = allGood;
-  Serial1.write(calibrBuff, 8);
-  delay(100);
-
-  calibrBuff[5] = 0x05;
-  calibrBuff[7] = allBad;
-  Serial1.write(calibrBuff, 8);
-  delay(100);
-
-  calibrBuff[5] = 0x06;
-  calibrBuff[7] = allGood;
-  Serial1.write(calibrBuff, 8);
-  delay(100);
-
-  calibrBuff[5] = 0x07;
-  calibrBuff[7] = 0x01;
-  Serial1.write(calibrBuff, 8);
-  delay(100);
-
-  calibrBuff[5] = 0x08;
-  calibrBuff[7] = 0x01;
-  Serial1.write(calibrBuff, 8);
-  delay(100);
-
-  /*
-    1. чтение датчика закрытой крышки
-    2. чтение датчика круга (проверить на месте ли круг)
-    3. проверка дитчиков цилиндров
-    4. проверка объема
-  
-  checkHeaters();
-  byte changeToMainPage[] = { 0X5A, 0XA5, 0X07, 0X82, 0X00, 0X84, 0X5A, 0x01, 0x00, 0x1E };
-  Serial1.write(changeToMainPage, 10);
-  
-  calibrDone = 1;
-}*/
-
 
 // ============== изменить состояние кнопки на двине ========
 void operatingMode(byte i) {
@@ -1166,6 +1104,8 @@ void setDwin() {
         }
       }
     }
+
+    setSolenoidSensorState();
 }
 
 
@@ -1304,7 +1244,6 @@ void sendWashCycleSt1() {
     Serial.println(washCycleSt1);
   }
 }
-
 // ============== отправка количества циклов сливок на экране 1 ============
 void sendWashCycleCr1() {
   washCycleCr1Buf[6] = highByte(washCycleCr1);
@@ -1316,7 +1255,6 @@ void sendWashCycleCr1() {
     Serial.println(washCycleCr1);
   }
 }
-
 // ============== отправка количества циклов страчателлы на экране 2 =======
 void sendWashCycleSt2() {
   washCycleSt2Buf[6] = highByte(washCycleSt2);
@@ -1328,7 +1266,6 @@ void sendWashCycleSt2() {
     Serial.println(washCycleSt2);
   }
 }
-
 // ============== отправка количества циклов сливок на экране 2 ============
 void sendWashCycleCr2() {
   washCycleCr2Buf[6] = highByte(washCycleCr2);
@@ -1340,7 +1277,6 @@ void sendWashCycleCr2() {
     Serial.println(washCycleCr2);
   }
 }
-
 // ============== отправка количества циклов страчателлы на экране 3 =======
 void sendWashCycleSt3() {
   washCycleSt3Buf[6] = highByte(washCycleSt3);
@@ -1352,7 +1288,6 @@ void sendWashCycleSt3() {
     Serial.println(washCycleSt3);
   }
 }
-
 // ============== отправка количества циклов сливок на экране 3 ============
 void sendWashCycleCr3() {
   washCycleCr3Buf[6] = highByte(washCycleCr3);
@@ -1364,6 +1299,39 @@ void sendWashCycleCr3() {
     Serial.println(washCycleCr3);
   }
 }
+
+// ============== отправка количества сделанных циклов на экран ============
+void sendTodayCycle(int cycle){
+  todayCyclesBuff[6] = highByte(cycle);
+  todayCyclesBuff[7] = lowByte(cycle);
+  Serial1.write(todayCyclesBuff, 8);
+
+  if (DEBUG) {
+
+    Serial.print("todayCycle: ");
+    Serial.println(cycle);
+  }
+
+}
+
+// ============== отправка времени цикла на экран =================
+void sendCycleTimer(float timer){
+  
+  byte* f_byte = reinterpret_cast<byte*>(&timer);
+  memcpy(timerCharArray, f_byte, 4);
+
+  timerBuf[6] = timerCharArray[3];
+  timerBuf[7] = timerCharArray[2];
+  timerBuf[8] = timerCharArray[1];
+  timerBuf[9] = timerCharArray[0];
+  Serial1.write(timerBuf, 10);
+
+  if(DEBUG){
+    Serial.print("Timer: ");
+    Serial.println(timer);
+  }
+}
+
 
 // ============== запуск цикла 1 ============
 void cycle1(){
@@ -1456,7 +1424,6 @@ void cycle1(){
     //Serial.println(__func__);
   }
 }
-
 // ============== запуск цикла 2 ============
 void cycle2(){
     // запуск прокачки цилиндров страчателлы и сливок 
@@ -1465,7 +1432,6 @@ void cycle2(){
       Serial.println(__func__);
     }
 }
-
 // ============== запуск цикла 3 ============
 void cycle3(){
     // запуск прокачки цилиндров страчателлы и сливок 
@@ -1474,6 +1440,7 @@ void cycle3(){
       Serial.println(__func__);
     }
 }
+
 
 // ======================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =========================
 // ============== отображение содержимого буффера в Serial ==================
@@ -1533,6 +1500,211 @@ void sendCylinderIconState(byte addr, byte state){
   cylinderIconBuf[5] = addr;
   cylinderIconBuf[7] = state;
   Serial1.write(cylinderIconBuf, 8);
+}
+
+
+//проверка датчиков цилиндров
+void setSolenoidSensorState(){
+  ssState1  = !digitalRead(SOLENOID_SENSOR1);
+  ssState2  = !digitalRead(SOLENOID_SENSOR2);
+  ssState3  = !digitalRead(SOLENOID_SENSOR3);
+  ssState4  = !digitalRead(SOLENOID_SENSOR4);
+  ssState5  = !digitalRead(SOLENOID_SENSOR5);
+  ssState6  = !digitalRead(SOLENOID_SENSOR6);
+  ssState7  = !digitalRead(SOLENOID_SENSOR7);
+  ssState8  = !digitalRead(SOLENOID_SENSOR8);
+  ssState9  = !digitalRead(SOLENOID_SENSOR9);
+  ssState10 = !digitalRead(SOLENOID_SENSOR10);  
+  ssState11 = !digitalRead(SOLENOID_SENSOR11);
+  ssState12 = !digitalRead(SOLENOID_SENSOR12);
+  ssState13 = !digitalRead(SOLENOID_SENSOR13);
+  ssState14 = !digitalRead(SOLENOID_SENSOR14); 
+
+  ssStateBuf[5] = 0x00;
+  ssStateBuf[7] = ssState1;
+  Serial1.write(ssStateBuf, 8);
+  while(Serial1.read() != 0x4B);
+
+  ssStateBuf[5] = 0x01;
+  ssStateBuf[7] = ssState2;
+  Serial1.write(ssStateBuf, 8);
+  while(Serial1.read() != 0x4B);
+
+  ssStateBuf[5] = 0x02;
+  ssStateBuf[7] = ssState3;
+  Serial1.write(ssStateBuf, 8);
+  while(Serial1.read() != 0x4B);
+
+  ssStateBuf[5] = 0x03;
+  ssStateBuf[7] = ssState4;
+  Serial1.write(ssStateBuf, 8);
+  while(Serial1.read() != 0x4B);
+
+  ssStateBuf[5] = 0x04;
+  ssStateBuf[7] = ssState5;
+  Serial1.write(ssStateBuf, 8);
+  while(Serial1.read() != 0x4B);
+
+  ssStateBuf[5] = 0x05;
+  ssStateBuf[7] = ssState6;
+  Serial1.write(ssStateBuf, 8);
+  while(Serial1.read() != 0x4B);
+
+  ssStateBuf[5] = 0x06;
+  ssStateBuf[7] = ssState7;
+  Serial1.write(ssStateBuf, 8);
+  while(Serial1.read() != 0x4B);
+
+  ssStateBuf[5] = 0x07;
+  ssStateBuf[7] = ssState8;
+  Serial1.write(ssStateBuf, 8);
+  while(Serial1.read() != 0x4B);
+
+  ssStateBuf[5] = 0x08;
+  ssStateBuf[7] = ssState9;
+  Serial1.write(ssStateBuf, 8);
+  while(Serial1.read() != 0x4B);
+
+  ssStateBuf[5] = 0x09;
+  ssStateBuf[7] = ssState10;
+  Serial1.write(ssStateBuf, 8);
+  while(Serial1.read() != 0x4B);
+
+  ssStateBuf[5] = 0x0A;
+  ssStateBuf[7] = ssState11;
+  Serial1.write(ssStateBuf, 8);
+  while(Serial1.read() != 0x4B);
+
+  ssStateBuf[5] = 0x0B;
+  ssStateBuf[7] = ssState12;
+  Serial1.write(ssStateBuf, 8);
+  while(Serial1.read() != 0x4B);
+
+  ssStateBuf[5] = 0x0C;
+  ssStateBuf[7] = ssState13;
+  Serial1.write(ssStateBuf, 8);
+  while(Serial1.read() != 0x4B);
+
+  ssStateBuf[5] = 0x0D;
+  ssStateBuf[7] = ssState14;
+  Serial1.write(ssStateBuf, 8);
+  while(Serial1.read() != 0x4B);
+}
+//отображение состояния датчика цилиндра на экране
+void checkSolenoidSensors() {
+  
+  //датчик левого пресса от центру
+  if (ssState1 != digitalRead(SOLENOID_SENSOR1)) {
+    //ssState1 = digitalRead(SOLENOID_SENSOR1);
+    ssStateBuf[5] = 0x00;
+    ssStateBuf[7] = ssState1;
+    Serial1.write(ssStateBuf, 8);
+    ssState1 = !ssState1;
+  }
+  //датчик левого пресса в центра
+  if (ssState2 != digitalRead(SOLENOID_SENSOR2)) {
+    //ssState2 = digitalRead(SOLENOID_SENSOR2);
+    ssStateBuf[5] = 0x01;
+    ssStateBuf[7] = ssState2;
+    Serial1.write(ssStateBuf, 8);
+    ssState2 = !ssState2;
+  }
+  //датчик пресс-форсунка низ
+  if (ssState3 != digitalRead(SOLENOID_SENSOR3)) {
+    //ssState3 = digitalRead(SOLENOID_SENSOR3);
+    ssStateBuf[5] = 0x02;
+    ssStateBuf[7] = ssState3;
+    Serial1.write(ssStateBuf, 8);
+    ssState3 = !ssState3;
+  }
+  //датчик правого пресса от центра
+  if (ssState4 != digitalRead(SOLENOID_SENSOR4)) {
+    //ssState4 = digitalRead(SOLENOID_SENSOR4);
+    ssStateBuf[5] = 0x03;
+    ssStateBuf[7] = ssState4;
+    Serial1.write(ssStateBuf, 8);
+    ssState4 = !ssState4;
+  }
+  //датчик правого пресса в центре
+   if (ssState5 != digitalRead(SOLENOID_SENSOR5)) {
+    //ssState5 = digitalRead(SOLENOID_SENSOR5);
+    ssStateBuf[5] = 0x04;
+    ssStateBuf[7] = ssState5;
+    Serial1.write(ssStateBuf, 8);
+    ssState5 = !ssState5;
+  }
+  //датчик рзгрузки низ
+   if (ssState6 != digitalRead(SOLENOID_SENSOR6)) {
+    //ssState6 = digitalRead(SOLENOID_SENSOR6);
+    ssStateBuf[5] = 0x05;
+    ssStateBuf[7] = ssState6;
+    Serial1.write(ssStateBuf, 8);
+    ssState6 = !ssState6;
+  }
+  //датчик ножа от центра
+   if (ssState7 != digitalRead(SOLENOID_SENSOR7)) {
+    //ssState7 = digitalRead(SOLENOID_SENSOR7);
+    ssStateBuf[5] = 0x06;
+    ssStateBuf[7] = ssState7;
+    Serial1.write(ssStateBuf, 8);
+    ssState7 = !ssState7;
+  }
+  //датчик ножа центр
+   if (ssState8 != digitalRead(SOLENOID_SENSOR8)) {
+    //ssState8 = digitalRead(SOLENOID_SENSOR8);
+    ssStateBuf[5] = 0x07;
+    ssStateBuf[7] = ssState8;
+    Serial1.write(ssStateBuf, 8);
+    ssState8 = !ssState8;
+  }
+  //датчик сливок подвижный
+   if (ssState9 != digitalRead(SOLENOID_SENSOR9)) {
+    //ssState9 = digitalRead(SOLENOID_SENSOR9);
+    ssStateBuf[5] = 0x08;
+    ssStateBuf[7] = ssState9;
+    Serial1.write(ssStateBuf, 8);
+    ssState9 = !ssState9;
+  }
+  //датчик редуктора верх
+   if (ssState10 != digitalRead(SOLENOID_SENSOR10)) {
+    //ssState10 = digitalRead(SOLENOID_SENSOR10);
+    ssStateBuf[5] = 0x09;
+    ssStateBuf[7] = ssState10;
+    Serial1.write(ssStateBuf, 8);
+    ssState10 = !ssState10;
+  }
+  //датчик сливок неподвижный верхний
+   if (ssState11 != digitalRead(SOLENOID_SENSOR11)) {
+    //ssState11 = digitalRead(SOLENOID_SENSOR11);
+    ssStateBuf[5] = 0x0A;
+    ssStateBuf[7] = ssState11;
+    Serial1.write(ssStateBuf, 8);
+    ssState11 = !ssState11;
+  }
+  //датчик редуктора низ
+   if (ssState12 != digitalRead(SOLENOID_SENSOR12)) {
+    //ssState12 = digitalRead(SOLENOID_SENSOR12);
+    ssStateBuf[5] = 0x0B;
+    ssStateBuf[7] = ssState12;
+    Serial1.write(ssStateBuf, 8);
+    ssState12 = !ssState12;
+  }
+  //датчик страчателлы неподвижный
+   if (ssState13 != digitalRead(SOLENOID_SENSOR13)) {
+    //ssState13 = digitalRead(SOLENOID_SENSOR13);
+    ssStateBuf[5] = 0x0C;
+    ssStateBuf[7] = ssState13;
+    Serial1.write(ssStateBuf, 8);
+    ssState13 = !ssState13;
+  }
+  ///датчик страчателлы подвижный
+   if (ssState14 != digitalRead(SOLENOID_SENSOR14)) {
+    //ssState14 = digitalRead(SOLENOID_SENSOR14);
+    ssStateBuf[5] = 0x0D;
+    ssStateBuf[7] = ssState14;
+    Serial1.write(ssStateBuf, 8);
+    ssState14 = !ssState14;
+  }
 }
 
 /*// TODO ///

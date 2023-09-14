@@ -31,7 +31,7 @@
       if (micros() - stepTimerRE >= 75) {
         stepTimerRE = micros();
         if (!digitalRead(TURN_SENSOR)) {  // датчик оборота сработал
-          stepsCCW = checkStepFlagRE;       //замеряем количество шагов до срабатывания датчика
+          stepsRE = checkStepFlagRE;       //замеряем количество шагов до срабатывания датчика
 
           if (DEBUG) {
             Serial.print("CCW steps: ");
@@ -425,146 +425,6 @@ void calcMassaCR() {
 
 
 
-//отображение состояния датчика цилиндра на экране
-void displaySolenoidSensorLight(byte solenoid) {
-  /* switch (solenoid){
-    case(0x00): // датчики левого пресса
-        if(ssState1 != digitalRead(SOLENOID_SENSOR10)){
-          ssState1 = !ssState1;
-          ssStateBuf[5] = 0x00;
-          ssStateBuf[7] = ssState1;
-          Serial1.write(ssStateBuf, 8);
-        };
-        if(ssState2 != digitalRead(SOLENOID_SENSOR11)){
-          ssState2 = !ssState2;
-          ssStateBuf[5] = 0x00;
-          ssStateBuf[7] = ssState1;
-          Serial1.write(ssStateBuf, 8);
-        }
-      break;
-
-    default:
-      showError();
-      break;
-  }
-  */
-
-  /*
-  //датчик левого пресса к центру
-  if (ssState1 != digitalRead(SOLENOID_SENSOR8)) {
-    ssStateBuf[5] = 0x00;
-    ssStateBuf[7] = ssState1;
-    Serial1.write(ssStateBuf, 8);
-    ssState1 = !ssState1;
-    changeSSLight = 0;
-  }
-  //датчик левого пресса от центра
-  if (ssState2 != digitalRead(SOLENOID_SENSOR9)) {
-    ssStateBuf[5] = 0x01;
-    ssStateBuf[7] = ssState2;
-    Serial1.write(ssStateBuf, 8);
-    ssState2 = !ssState2;
-    //changeSSLight = 0;
-  }
-  //датчик правого пресса к центру
-  if (ssState3 != digitalRead(SOLENOID_SENSOR11)) {
-    ssStateBuf[5] = 0x02;
-    ssStateBuf[7] = ssState3;
-    Serial1.write(ssStateBuf, 8);
-    ssState3 = !ssState3;
-    //changeSSLight = 0;
-  }
-  //датчик правого пресса от центра
-    if (ssState4 != digitalRead(SOLENOID_SENSOR10)) {
-    ssStateBuf[5] = 0x03;
-    ssStateBuf[7] = ssState4;
-    Serial1.write(ssStateBuf, 8);
-    ssState4 = !ssState4;
-    //changeSSLight = 0;
-  }
-  //датчик ножа к центру
-   if (ssState5 != digitalRead(SOLENOID_SENSOR13)) {
-    ssStateBuf[5] = 0x04;
-    ssStateBuf[7] = ssState5;
-    Serial1.write(ssStateBuf, 8);
-    ssState5 = !ssState5;
-    //changeSSLight = 0;
-  }
-  //датчик ножа от центра
-   if (ssState6 != digitalRead(SOLENOID_SENSOR12)) {
-    ssStateBuf[5] = 0x05;
-    ssStateBuf[7] = ssState5;
-    Serial1.write(ssStateBuf, 8);
-    ssState5 = !ssState5;
-    //changeSSLight = 0;
-  }
-  //датчик редкутора вверх
-   if (ssState7 != digitalRead(SOLENOID_SENSOR10)) {
-    ssStateBuf[5] = 0x06;
-    ssStateBuf[7] = ssState7;
-    Serial1.write(ssStateBuf, 8);
-    ssState7= !ssState7;
-    //changeSSLight = 0;
-  }
-  //датчик редкутора низ
-   if (ssState8 != digitalRead(SOLENOID_SENSOR2)) {
-    ssStateBuf[5] = 0x07;
-    ssStateBuf[7] = ssState8;
-    Serial1.write(ssStateBuf, 8);
-    ssState8 = !ssState8;
-    //changeSSLight = 0;
-  }
-  //датчик пресс форсунки низ
-   if (ssState9 != digitalRead(SOLENOID_SENSOR7)) {
-    ssStateBuf[5] = 0x08;
-    ssStateBuf[7] = ssState9;
-    Serial1.write(ssStateBuf, 8);
-    ssState9 = !ssState9;
-    //changeSSLight = 0;
-  }
-  //датчик страчателлы верх
-   if (ssState10 != digitalRead(SOLENOID_SENSOR3)) {
-    ssStateBuf[5] = 0x0A;
-    ssStateBuf[7] = ssState10;
-    Serial1.write(ssStateBuf, 8);
-    ssState10 = !ssState10;
-    //changeSSLight = 0;
-  }
-  //датчик страчателлы подвижный
-   if (ssState11 != digitalRead(SOLENOID_SENSOR4)) {
-    ssStateBuf[5] = 0x0B;
-    ssStateBuf[7] = ssState11;
-    Serial1.write(ssStateBuf, 8);
-    ssState11 = !ssState11;
-    //changeSSLight = 0;
-  }
-  //датчик сливок верх
-   if (ssState12 != digitalRead(SOLENOID_SENSOR5)) {
-    ssStateBuf[5] = 0x0C;
-    ssStateBuf[7] = ssState12;
-    Serial1.write(ssStateBuf, 8);
-    ssState12 = !ssState12;
-    //changeSSLight = 0;
-  }
-  //датчик сливок подвижный
-   if (ssState13 != digitalRead(SOLENOID_SENSOR6)) {
-    ssStateBuf[5] = 0x0D;
-    ssStateBuf[7] = ssState13;
-    Serial1.write(ssStateBuf, 8);
-    ssState13 = !ssState13;
-    //changeSSLight = 0;
-  }
-  ///датчик разгрузки
-   if (ssState14 != digitalRead(SOLENOID_SENSOR14)) {
-    ssStateBuf[5] = 0x07;
-    ssStateBuf[7] = ssState14;
-    Serial1.write(ssStateBuf, 8);
-    ssState14 = !ssState14;
-    changeSSLight = 0;
-  }
-  */
-}
-
 // нажата кнопка буррата
 void burrataButton() {
   switch (burrataButtonCase) {
@@ -573,34 +433,60 @@ void burrataButton() {
       burrataButtonBuf[7] = 1;
       Serial1.write(burrataButtonBuf, 8);   //изменение состояния кнопки "буррата" на вкл
 
-      digitalWrite(ILLUMINATION_OPTION1, HIGH);  //включаем подсветку кнопки
+      digitalWrite(ILLUMINATION_OPTION1, LOW);  //включаем подсветку кнопки
+      OptionalButton1State = 0;
+      OptionalButton1Timer = millis();
 
       burrataButtonIncrementalBuf[7] = 1;
       Serial1.write(burrataButtonIncrementalBuf, 8);   //изменение состояния кнопки "буррата" на вкл
 
       burrataButtonCase++;
       stepTimerRE = micros();
-    break;
+      checkStepFlagRE = 0;
 
-    case 1:   //крутим редуктор, пока не сработан датчик оборота
-      if (!digitalRead(TURN_SENSOR)) {
-        if (micros() - stepTimerRE >= 1500) {
-          stepTimerRE = micros();
-          makeRE_CCWR();
-        }
-        //burrataButtonCase = 1;
-      } else {
-        //burrataButtonCase = 2;
+      //меняем кейс функции rotateDiskButton() для перехода к кручению
+      rotateDiskButtonCase = 1;
+      //начинаем засекать цикл изготовления бурраты
+      
+    break;
+/*
+    // case 1:   //крутим редуктор, пока не сработан датчик оборота
+    //   digitalWrite(SOLENOID_SWITCH11, HIGH);  //подняли разгрузку
+    //   if (digitalRead(TURN_SENSOR)) {
+    //     if (micros() - stepTimerRE >= 5000) {
+    //       stepTimerRE = micros();
+    //       makeRE_CWR();
+    //     }
+
+    //     //burrataButtonCase = 1;
+    //   } else {
+    //     //burrataButtonCase = 2;
+    //     stepsCWSpeed = 5000;
+    //     burrataButtonCase++;
+    //   }
+    // break;
+*/
+    case 1:   //идём 75 шагов против часовой с ускорением
+      digitalWrite(SOLENOID_SWITCH11, HIGH);  //подняли разгрузку
+      
+      //пропускаем первый кейс в функции оборотов
+      
+      /*
+      rotateDiskButton();
+      if(rotateDiskButtonCase == 0){
         burrataButtonCase++;
       }
-    break;
+      */
+      burrataButtonCase++;
+      break;
 
-    case 2:   //идём 500 шагов против часовой
-      if (checkStepFlagRE < 500) {
-        if (micros() - stepTimerRE >= stepsCCWSpeed) {
+      /* заменили старые кейсы на функцию
+      if (checkStepFlagRE < 250) {
+        if (micros() - stepTimerRE >= stepsCWSpeed) {
           stepTimerRE = micros();
-          makeRE_CCWR();
+          makeRE_CWR();
           checkStepFlagRE++;
+          stepsCWSpeed -= 9;       //ускоряем каждый полушаг
         }
       } else {
         burrataButtonCase++;
@@ -609,20 +495,33 @@ void burrataButton() {
 
       break;
 
-    case 3:   //замедляемся перед оснатовкой
-      if (checkStepFlagRE < 200) {
-        if (micros() - stepTimerRE >= stepsCCWSpeed) {
+    case 2:   //идём 225 шагов на максимальной скорости
+      if (checkStepFlagRE < 410) {
+        if (micros() - stepTimerRE >= stepsCWSpeed) {
           stepTimerRE = micros();
-          makeRE_CCWR();
+          makeRE_CWR();
+          checkStepFlagRE++;
+        }
+      } else {
+        burrataButtonCase++;
+        checkStepFlagRE = 0;
+      }
+      break;
+
+    case 3:   //замедляемся перед оснатовкой
+      if (checkStepFlagRE < 70) {
+        if (micros() - stepTimerRE >= stepsCWSpeed) {
+          stepTimerRE = micros();
+          makeRE_CWR();
           checkStepFlagRE++;
 
-          CCWSpeedTest = stepsCCWSpeed * 1.005;
-          stepsCCWSpeed = (int)CCWSpeedTest;
+          RESpeedTest = stepsCWSpeed + 14;
+          stepsCWSpeed = (int)RESpeedTest;
+          
         }
       } else {
         burrataButtonCase++;
         //Serial.println(stepsCCWSpeed);
-
         checkStepFlagRE = 0;
       }
 
@@ -630,55 +529,72 @@ void burrataButton() {
 
     case 4:   //едем на минимуме, пока не сработает датчик оборота
       if (digitalRead(TURN_SENSOR)) {
-        if (micros() - stepTimerRE >= stepsCCWSpeed) {
-          stepsCCWSpeed += 7;
+        if (micros() - stepTimerRE >= stepsCWSpeed) {
+          stepsCWSpeed += 7;
           stepTimerRE = micros();
-          makeRE_CCWR();
-          stepsCCW++;
+          makeRE_CWR();
         }
       } else {
         burrataButtonCase++;
       }
-
       break;
 
-    case 5:   //опускам пресс-форсунку и поднимаем редуктор
-
-      if (digitalRead(SOLENOID_SENSOR12) == 0 && digitalRead(SOLENOID_SENSOR7) == 1) {  //если пресс-форсунка опущенаесли и редуктор поднят - идём дальше
-        digitalWrite(SOLENOID_SWITCH5, HIGH);  //опускем пресс-форсункe
-        cylinderState[5] = 1;                  //запоминаем состояние цилиндра
+    case 5:     //идём нужное количество шагов после срабатывания датчика = 0!
+      if (checkStepFlagRE < 0) {
+        if (micros() - stepTimerRE >= stepsCWSpeed) {
+          stepTimerRE = micros();
+          makeRE_CWR();
+          checkStepFlagRE++;
+        }
+      } else {
         burrataButtonCase++;
-      };
+      }
       break;
 
-    case 6:   //проверяем датчик пресс-форсунки низ
-        if(digitalRead(SOLENOID_SENSOR7)){      //проверяем датчик пресс-форсунки низ
-          digitalWrite(SOLENOID_SWITCH6, LOW);   //опускаем цилиндр страчателлы
-          cylinderState[6] = 0;                  //запоминаем состояние цилиндра
-          digitalWrite(SOLENOID_SWITCH7, LOW);   //опускаем цилиндр сливок        
-          cylinderState[7] = 0;                  //запоминаем состояние цилиндра
+ИЗМЕНИЛИ НУМЕРАЦИЮ КЕЙСОВ
+*/
+
+    case 2:   //опускаем пресс-форсунку и начали накачку цилиндров
+        cycleTimer = millis();
+        digitalWrite(SOLENOID_SWITCH3, HIGH);   //поднимаем подставку
+        cylinderState[3] = 1;                   //запоминаем состояние цилиндра подставки  
+        digitalWrite(SOLENOID_SWITCH5, HIGH);  //опускем пресс-форсункe
+        cylinderState[5] = 1;                   //запоминаем состояние цилиндра пресс форсунки
+        burrataButtonCase++;
+      break;
+
+    case 3:   //проверяем датчик пресс-форсунки низ
+        
+        if(digitalRead(SOLENOID_SENSOR3) == 0){      //проверяем датчик пресс-форсунки низ
+          digitalWrite(SOLENOID_SWITCH6, LOW); //страч
+          cylinderState[6] = 1;                  //запоминаем состояние цилиндра
+          digitalWrite(SOLENOID_SWITCH7, LOW); //сливки
+          cylinderState[7] = 1;                  //запоминаем состояние цилиндра
+        
           burrataButtonCase++;
         }
       break;
 
 
-    case 7:   //дозируем
-      if (digitalRead(SOLENOID_SENSOR4) == LOW && sensorFlag[1] == 0) { //страчателла
-        digitalWrite(SOLENOID_SWITCH3, HIGH); //форсунка вкл
-        cylinderState[3] = 1;                  //запоминаем состояние цилиндра
+    case 4:   //дозируем
+      if (digitalRead(SOLENOID_SENSOR14) == LOW && sensorFlag[1] == 0) { //страчателла
         digitalWrite(SOLENOID_SWITCH2, HIGH); //голова страч
         cylinderState[2] = 1;                  //запоминаем состояние цилиндра
-        digitalWrite(SOLENOID_SWITCH6, HIGH); //страч
+        digitalWrite(SOLENOID_SWITCH4, LOW); //форсунка вкл
+        cylinderState[4] = 1;                  //запоминаем состояние цилиндра
+         digitalWrite(SOLENOID_SWITCH6, HIGH); //страч
         cylinderState[6] = 1;                  //запоминаем состояние цилиндра
+        
         sensorFlag[1] = 1;
       }
-      if (digitalRead(SOLENOID_SENSOR6) == LOW && sensorFlag[2] == 0) {
-        digitalWrite(SOLENOID_SWITCH3, HIGH); //форсунка вкл
-        cylinderState[3] = 1;                  //запоминаем состояние цилиндра
+      if (digitalRead(SOLENOID_SENSOR9) == LOW && sensorFlag[2] == 0) {
         digitalWrite(SOLENOID_SWITCH1, HIGH); //голова сливок
         cylinderState[1] = 1;                  //запоминаем состояние цилиндра
+        digitalWrite(SOLENOID_SWITCH4, LOW); //форсунка вкл
+        cylinderState[4] = 1;                  //запоминаем состояние цилиндра
         digitalWrite(SOLENOID_SWITCH7, HIGH); //сливки
         cylinderState[7] = 1;                  //запоминаем состояние цилиндра
+       
         sensorFlag[2] = 1;
       }
       if (sensorFlag[1] == 1 && sensorFlag[2] == 1) {
@@ -688,49 +604,35 @@ void burrataButton() {
       }
       break;
 
-    case 8:   //ждём когда вернуться цилиндры страчателлы и сливок обратно
-      if (!digitalRead(SOLENOID_SENSOR3) && !digitalRead(SOLENOID_SENSOR5)) {
-          digitalWrite(SOLENOID_SWITCH3, LOW); //форсунка выкл
-          cylinderState[3] = 0;                  //запоминаем состояние цилиндра
-          digitalWrite(SOLENOID_SWITCH2, LOW); //голова страч
-          cylinderState[2] = 0;                  //запоминаем состояние цилиндра
-          digitalWrite(SOLENOID_SWITCH1, LOW); //голова сливок
-          cylinderState[1] = 0;                  //запоминаем состояние цилиндра
+    case 5:   //ждём когда вернуться цилиндры страчателлы и сливок обратно
+      if (!digitalRead(SOLENOID_SENSOR11) && !digitalRead(SOLENOID_SENSOR13)) {     //ждём срабатывания верхних датчиков страчателлы и сливок 
+        digitalWrite(SOLENOID_SWITCH4, HIGH); //форсунка выкл
+        cylinderState[4] = 0;                  //запоминаем состояние цилиндра
+        digitalWrite(SOLENOID_SWITCH2, LOW); //голова страч
+        cylinderState[2] = 0;                  //запоминаем состояние цилиндра
+        digitalWrite(SOLENOID_SWITCH1, LOW); //голова сливок
+        cylinderState[1] = 0;                  //запоминаем состояние цилиндра
         burrataButtonCase++;
-        if (DEBUG) {
-          Serial.print("burrataButtonCase case: ");
-          Serial.println(burrataButtonCase);
+      }
+      break;
+
+    case 6:  //крутим чашку 
+      if(digitalRead(SOLENOID_SENSOR12) == 0 && checkStepFlagRE > (rotation * 800 * 6)){ //полушаги + передатка
+          cylinderState[10] = 0;                  //запоминаем состояние редуктора
+          burrataButtonCase++;
+          checkStepFlagRE = 0;
+
+        } else {
+          if (micros() - stepTimerRE >= stepsCCWSpeed) {
+            stepTimerRE = micros();
+            makeRE_CCWR();
+            checkStepFlagRE++;
+          }
+          digitalWrite(SOLENOID_SWITCH10, LOW);  //опускаем редуктор
         }
-      }
       break;
 
-
-    case 9:   //опускаем (редуктор)
-      digitalWrite(SOLENOID_SWITCH10, LOW);  //опускаем редуктор
-      cylinderState[10] = 0;                  //запоминаем состояние редуктора
-
-      burrataButtonCase++;
-
-      stepTimerRE = micros();
-      break;
-
-    case 10:  //крутим редуктор по часовой
-      if (checkStepFlagRE < 4000) {  // идём 1500 шагов
-        if (micros() - stepTimerRE >= 800) {
-          stepTimerRE = micros();
-          makeRE_CWR();
-          checkStepFlagRE++;
-        }
-      }
-
-      if (checkStepFlagRE == 4000 && !digitalRead(SOLENOID_SENSOR11)) {
-        burrataButtonCase++;
-        Serial.println(checkStepFlagRE);
-        checkStepFlagRE = 0;
-      }
-      break;
-
-    case 11:  //сводим левый/правый пресс
+    case 7:  //сводим левый/правый пресс
       digitalWrite(SOLENOID_SWITCH9, HIGH);   //левый пресс!!!
       cylinderState[9] = 1;                  //запоминаем состояние цилиндра
       digitalWrite(SOLENOID_SWITCH8, HIGH); //правый пресс!!!
@@ -739,114 +641,124 @@ void burrataButton() {
       burrataButtonCase++;
       break;
 
-    case 12:  // отслеживаем срабатывание левого датчика правого пресса и правого датчика левого пресса
-      if (!digitalRead(SOLENOID_SENSOR8) && !digitalRead(SOLENOID_SENSOR11)) {
+    case 8:  // отслеживаем срабатывание датчиков прессов в центре и стреляем ножом
+      if (!digitalRead(SOLENOID_SENSOR5) && !digitalRead(SOLENOID_SENSOR2)) {
+        knifeTimer2 = millis();
         pressTimer = millis();
         burrataButtonCase++;
       }
-
       break;
 
-    case 13:  // ждём спаивания
-      if(millis() - pressTimer >= 2500){
-        burrataButtonCase++;
+    case 9:    //ждём срабатывания датчика ножа в центре
+      if(millis() - knifeTimer2 > 1500){
+        digitalWrite(SOLENOID_SWITCH12, HIGH);   //стреляем ножом
+        cylinderState[12] = 1;                  //запоминаем состояние цилиндра
+        
+        if(digitalRead(SOLENOID_SENSOR8) == 0){
+          knifeTimer1 = millis();
+          burrataButtonCase++;
+        }
       }
-      break;
-    
-    case 14:  // выстреливаем нож
-      digitalWrite(SOLENOID_SWITCH12, HIGH);
-      cylinderState[12] = 1;                  //запоминаем состояние цилиндра
-      pressTimer = millis();
-      burrataButtonCase++;
+      
       break;
 
-    case 15: // ждём нож пол секунды 
-      if(millis() - pressTimer >= 1500){
-        burrataButtonCase++;
-      }
-      break;
-
-    case 16:  // ждём пока нож доедет до датчика в цнетре и убираем нож обратно
-      if(!digitalRead(SOLENOID_SENSOR13) ){     // датчик ножа в центре
-        digitalWrite(SOLENOID_SWITCH12, LOW);   //отводим нож
+    case 10: // ждём нож пол секунды 
+      if(millis() - knifeTimer1 >= 1000){
+        digitalWrite(SOLENOID_SWITCH12, LOW);   //убираем нож 
         cylinderState[12] = 0;                  //запоминаем состояние цилиндра
+        burrataButtonCase++;
+      }
+      break;
+
+    case 11:  //ждём датчик ножа от центра
+      if(digitalRead(SOLENOID_SENSOR7) == 0){
+        burrataButtonCase++;
+      }
+      break;
+
+    case 12:  // ждём спаивания и убираем прессы
+      if(millis() - pressTimer >= int(time*1000)){
         digitalWrite(SOLENOID_SWITCH9, LOW);   //пресс левый отводим
         cylinderState[9] = 0;                   //запоминаем состояние цилиндра
         digitalWrite(SOLENOID_SWITCH8, LOW);   //пресс правый отводим
         cylinderState[8] = 0;                  //запоминаем состояние цилиндра
-
         burrataButtonCase++;
       }
       break;
 
-    case 17:  // ждём срабатываение датчиков ножа и прессов от центра
-      if(!digitalRead(SOLENOID_SENSOR12) && !digitalRead(SOLENOID_SENSOR9) && !digitalRead(SOLENOID_SENSOR10)){
+
+    case 13:  // ждём срабатываение датчиков ножа и прессов от центра
+      if(!digitalRead(SOLENOID_SENSOR1) && !digitalRead(SOLENOID_SENSOR4)){
+       
         burrataButtonCase++;
       }
       break;
 
-    case 18:  //поднимаем редуктор,
-      digitalWrite(SOLENOID_SWITCH10, HIGH);  // поднимаем редуктор
-      cylinderState[10] = 1;                  //запоминаем состояние цилиндра
-      digitalWrite(SOLENOID_SWITCH5, LOW);   // поднимаем пресс-форсунку
-      cylinderState[5] = 0;                  //запоминаем состояние цилиндра
-      digitalWrite(SOLENOID_SWITCH4, LOW);   // опускаем чашечку
-      cylinderState[4] = 0;                  //запоминаем состояние цилиндра
-
-      if (!digitalRead(SOLENOID_SENSOR10)) {
-        burrataButtonCase++;   
+    case 14:  //поднимаем редуктор с кручением для выгрузки и опускаем подтсавку, поднимаем пресс-форсунку
+       if (digitalRead(SOLENOID_SENSOR10) == 0) {  //редуктор поднят - идём дальше
+        cylinderState[3] = 0;                   //запоминаем состояние цилиндра подставки  
+        cylinderState[5] = 0;                   //запоминаем состояние цилиндра пресс форсунки
+        cylinderState[10] = 1; 
+        checkStepFlagRE = 0;
+        cycleTimer = (millis() - cycleTimer);
+      
+        burrataButtonCase++;
+      } else {
+        if (micros() - stepTimerRE >= 500) {
+          stepTimerRE = micros();
+          makeRE_CCWR();
+          checkStepFlagRE++;
+        }
+        digitalWrite(SOLENOID_SWITCH10, HIGH);  //поднимаем редуктор
+        digitalWrite(SOLENOID_SWITCH5, LOW);  //подниамем пресс-форсункe
+        digitalWrite(SOLENOID_SWITCH3, LOW);   //опускаем подставку 
       }
       break;
 
-    case 19:
-      digitalWrite(SOLENOID_SWITCH11, HIGH);  // опускаем 
-      cylinderState[11] = 1;                  //запоминаем состояние цилиндра
-
-      pressTimer = millis();
-      burrataButtonCase++;
-      break;
-
-    case 20:  
-      if(millis() - pressTimer >= 3000){
-        burrataButtonCase++;
-      }            
-      break;
-
-    case 21:  // поднимаем разгрузку
+    case 15:  //опускаем разгрузку
       digitalWrite(SOLENOID_SWITCH11, LOW);
-      cylinderState[11] = 0;                  //запоминаем состояние цилиндра
-      if(!digitalRead(SOLENOID_SENSOR14)){
+      cylinderState[11] = 0; 
+      burrataButtonCase++;
+      break;  
+
+    case 16:  //проверяем датчик разгрузки в нижнем положении
+      if(digitalRead(SOLENOID_SENSOR6) == 0){
         burrataButtonCase++;
       }
       break;
 
-    case 22:  // поднимаем чашечку
-      digitalWrite(SOLENOID_SWITCH4, HIGH);  
-      cylinderState[4] = 0;                  //запоминаем состояние цилиндра 
-      burrataButtonCase++;
-      break;
-
-
-    case 23:
+    case 17:
       burrataButtonCase = 0;
       burrataButtonFlag = 0;    //изменение состояния кнопки "шаг" на выкл
+      
+      //отправка времени цикла на экран
+      sec = cycleTimer / 1000;
+      mSec = (cycleTimer % 1000)*0.001;
+      cycleTime = sec + mSec;      
+      sendCycleTimer(cycleTime);
+      if(DEBUG){
+        Serial.print("cycle time in burrata: ");
+        Serial.print(cycleTime);
+      }
+
+      //отправка количества циклов
+      todayCycles++;
+      sendTodayCycle(todayCycles);
+
       burrataButtonBuf[7] = 0;  //отправляем значение на экран  
       Serial1.write(burrataButtonBuf, 8); 
-      digitalWrite(ILLUMINATION_OPTION1, LOW);  //выключаем кнопку
-
-      stepsCCWSpeed = 1250;
-      stepsCCW = 0;
+      digitalWrite(ILLUMINATION_OPTION1, HIGH);  //выключаем кнопку
 
       break;
 
     default:
-      burrataButtonFlag = 0;
-      burrataButtonCase = 0;
       showError();
       if (DEBUG) {
-        Serial.println("burrataButton() error!");
-        Serial.println(__func__);
+        Serial.print("burrataButton() error! case:");
+        Serial.println(burrataButtonCase);
       }
+      burrataButtonFlag = 0;
+      burrataButtonCase = 0;
       break;
   }
 }
@@ -860,85 +772,148 @@ void rotateDiskButton() {
       rotateDiskButtonBuf[7] = 1;
       Serial1.write(rotateDiskButtonBuf, 8);    //включаем кнопку "шаг" на экране
      
-      digitalWrite(ILLUMINATION_OPTION2, HIGH);  //включаем подсветку кнопки
+      digitalWrite(ILLUMINATION_OPTION2, LOW);  //включаем подсветку кнопки
 
+/*
       rotateDiskButtonIncrementalBuff[7] = 1;
       Serial1.write(rotateDiskButtonIncrementalBuff, 8);
+*/
+      ///checkStepFlagRE = 0;
 
+      if(DEBUG){
+        Serial.print("rotation case: ");
+        Serial.println(rotateDiskButtonCase);
+      }
       rotateDiskButtonCase++;
       stepTimerRE = micros();
+
+      //начинаем засекать цикл изготовления бурраты
+      cycleTimer = millis();
       break;
 
-    case 1:   //крутим редуктор, пока не сработан датчик оборота
-      if (!digitalRead(TURN_SENSOR)) {
+    case 1:
+      if (checkStepFlagRE < 203) {
         if (micros() - stepTimerRE >= 1500) {
           stepTimerRE = micros();
-          makeRE_CCWR();
-        }
-        //rotateDiskButtonCase = 1;
-      } else {
-        //rotateDiskButtonCase = 2;
-        rotateDiskButtonCase++;
-      }
-      break;
-
-    case 2:   //идём 500 шагов против часовой
-      if (checkStepFlagRE < 500) {
-        if (micros() - stepTimerRE >= stepsCCWSpeed) {
-          stepTimerRE = micros();
-          makeRE_CCWR();
+          makeRE_CWR();
           checkStepFlagRE++;
         }
       } else {
-        rotateDiskButtonCase++;
         checkStepFlagRE = 0;
+
+        if(DEBUG){
+          Serial.print("rotation case: ");
+          Serial.println(rotateDiskButtonCase);
+        }
+        rotateDiskButtonCase++;
       }
+    break;
 
-      break;
-
-    case 3:   //замедляемся перед оснатовкой
-      if (checkStepFlagRE < 200) {
-        if (micros() - stepTimerRE >= stepsCCWSpeed) {
+    case 2:   //идём 125 шагов против часовой с ускорением
+      if (checkStepFlagRE < 100) {
+        if (micros() - stepTimerRE >= stepsCWSpeed) {
           stepTimerRE = micros();
-          makeRE_CCWR();
+          makeRE_CWR();
           checkStepFlagRE++;
-
-          CCWSpeedTest = stepsCCWSpeed * 1.005;
-          stepsCCWSpeed = (int)CCWSpeedTest;
+          stepsCWSpeed -= 32;       //ускоряем каждый полушаг
+          /* 
+          if(DEBUG){
+            Serial.println(checkStepFlagRE);
+            Serial.println(stepsCWSpeed);
+          }
+          */
         }
       } else {
-        rotateDiskButtonCase++;
-        //Serial.println(stepsCCWSpeed);
-
         checkStepFlagRE = 0;
+        
+        if(DEBUG){
+          Serial.print("rotation case: ");
+          Serial.println(rotateDiskButtonCase);
+        }
+        rotateDiskButtonCase++;
+      }
+      break;
+
+    case 3:   //идём 250 шагов на максимальной скорости
+      if (checkStepFlagRE < 600) {
+        if (micros() - stepTimerRE >= stepsCWSpeed) {
+          stepTimerRE = micros();
+          makeRE_CWR();
+          checkStepFlagRE++;
+        }
+      } else {
+        checkStepFlagRE = 0;
+
+        if(DEBUG){
+          Serial.print("rotation case: ");
+          Serial.println(rotateDiskButtonCase);
+        }
+        rotateDiskButtonCase++;
+
       }
 
       break;
 
-    case 4:   //едем на минимуме, пока не сработает датчик оборота
+    case 4:   //замедляем
+      if (checkStepFlagRE < 100) {
+        if (micros() - stepTimerRE >= stepsCWSpeed) {
+          stepTimerRE = micros();
+          makeRE_CWR();
+          stepsCWSpeed += 34;
+          checkStepFlagRE++;
+        }
+      } else {
+        if(rotateDiskButtonFlag){
+          cycleTimer = (millis() - cycleTimer);
+        }
+        checkStepFlagRE = 0;
+
+        if(DEBUG){
+          Serial.print("rotation case: ");
+          Serial.println(rotateDiskButtonCase);
+        }
+        rotateDiskButtonCase++;
+      }
+
+    break;
+
+/*  кейс по датчику
+    case 4:
       if (digitalRead(TURN_SENSOR)) {
-        if (micros() - stepTimerRE >= stepsCCWSpeed) {
-          stepsCCWSpeed += 7;
+        if (micros() - stepTimerRE >= stepsCWSpeed) {
+          stepsCWSpeed += 7;
           stepTimerRE = micros();
-          makeRE_CCWR();
-          stepsCCW++;
+          makeRE_CWR();
+          stepsRE++;
         }
       } else {
-        rotateDiskButtonCase++;
-      }
-
+          cycleTimer = (millis() - cycleTimer);
       break;
 
-
+*/
     case 5:
+      if(DEBUG){
+        Serial.print("rotation case: ");
+        Serial.println(rotateDiskButtonCase);
+      }
+
+      //рассчёт времени цикла "при нажатой копки шаг"
+      if(rotateDiskButtonFlag){
+        sec = cycleTimer / 1000;
+        mSec = (cycleTimer % 1000)*0.001;
+        cycleTime = sec + mSec;
+        Serial.print(cycleTime);
+        sendCycleTimer(cycleTime);
+      }
+        
       rotateDiskButtonCase = 0;
       rotateDiskButtonFlag = 0;
-      rotateDiskButtonBuf[7] = 0;
-      Serial1.write(rotateDiskButtonBuf, 8);    //изменение состояния кнопки "шаг" на выкл
-      digitalWrite(ILLUMINATION_OPTION2, LOW);  //отправляем значение на экран
+      stepsCWSpeed = 4000;
+      checkStepFlagRE = 0;
 
-      stepsCCWSpeed = 1250;
-      stepsCCW = 0;
+      rotateDiskButtonBuf[7] = 0;               //изменение состояния кнопки "шаг" на выкл
+      Serial1.write(rotateDiskButtonBuf, 8);    //отправка состояния кнопки  на экран
+      digitalWrite(ILLUMINATION_OPTION2, HIGH);  //отправляем значение на экран
 
       //обнуляем состояние по выполнению всей функции
       break;
@@ -984,6 +959,9 @@ void straciatellaButton() {
 
   */
 }
+
+
+
 
 void calibrateVolume(){
   switch (calibrateVolumeCase) {
@@ -1044,7 +1022,6 @@ void calibrateVolume(){
   }
 }
 
-
 // загрузка продукта
 void loading() {
 }
@@ -1089,6 +1066,8 @@ void calibrate() {
   }
 }
 
+
+
 // проверка датчиков при включении
 void checkSensors(){
   // проверка датчика крышки
@@ -1103,4 +1082,18 @@ void checkSensors(){
 
   // проверка датчика ТЭНов
   checkHeaters();
+  //checkSolenoidSensorState();
+}
+
+void blinkButton1(int x){
+  if(millis() - OptionalButton1Timer > x){
+    OptionalButton1Timer = millis();
+    if(OptionalButton1State){
+      digitalWrite(ILLUMINATION_OPTION1, HIGH);
+      OptionalButton1State = 0;
+    } else {
+      digitalWrite(ILLUMINATION_OPTION1, LOW);
+      OptionalButton1State = 1;
+    }
+  }
 }
