@@ -17,15 +17,15 @@ byte DEBUG = 1;
 #define SOLENOID_SWITCH12 25  // нож
 
 // SENSORS
-#define SOLENOID_SENSOR1 A0   //левый пресс от центра (был!!! датчик редуктора верх)
-#define SOLENOID_SENSOR2 A1   //левый пресс в ценитре (был!!! датчик редуктора низ)
-#define SOLENOID_SENSOR3 A2   //пресс-форсунка низ(был!!! датчик страчателлы верх)
-#define SOLENOID_SENSOR4 A3   //правый пресс от центир а (был датчик страчателлы подвижный)
-#define SOLENOID_SENSOR5 A4   //правый пресс в центре (был!!! датчик сливок верх)
-#define SOLENOID_SENSOR6 A5   //разгрузка низ (был радатчик сливок подвижный)
-#define SOLENOID_SENSOR7 A6   //нож от центра (был датчик пресс-форсунки низ)
-#define SOLENOID_SENSOR8 A7   //нож центра (был датчик левый пресс к центру)
-#define SOLENOID_SENSOR9 A8   //подвижный датчик сливок (был!!! датчик левый пресс от центра
+#define SOLENOID_SENSOR1 A0   //левый пресс от центра 
+#define SOLENOID_SENSOR2 A1   //левый пресс в ценитре 
+#define SOLENOID_SENSOR3 A2   //пресс-форсунка низ
+#define SOLENOID_SENSOR4 A3   //правый пресс от центра 
+#define SOLENOID_SENSOR5 A4   //правый пресс в центре 
+#define SOLENOID_SENSOR6 A5   //разгрузка низ 
+#define SOLENOID_SENSOR7 A6   //нож от центра 
+#define SOLENOID_SENSOR8 A7   //нож центра 
+#define SOLENOID_SENSOR9 A8   //подвижный датчик сливок
 #define SOLENOID_SENSOR10 A9  //датчик редуктора верх 
 #define SOLENOID_SENSOR11 A10 //верхний сливки
 #define SOLENOID_SENSOR12 A11 //датчик редуктора низ
