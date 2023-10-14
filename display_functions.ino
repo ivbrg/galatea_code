@@ -59,7 +59,6 @@
   14 02 | = иконка левого тэна
   14 03 | = иконка правого тэна
 
-
   **кнопки ***
   
   20 00 | 01 = калибровка
@@ -143,7 +142,9 @@
   30 24 - циклы разгрузки страчателлы
   30 26 - циклы разгрузки сливок
 
-  50 00 - текст ошибок
+
+  ** текст ошибки ***
+  40 00 | = строка юникода
 
 */
 
@@ -197,7 +198,7 @@ void readInput() {
       break;
 
     default:
-      showError();
+      showError("connection", 0);
       if (DEBUG) { Serial.println("readInput() ERROR!!!"); }
       break;
   }
@@ -206,6 +207,28 @@ void readInput() {
 // ============== парсинг адреса из сообщения ==================
 void parseBuffer() {
   switch (inputBuf[0]) {
+
+    case 0x00:
+      pageBeforeEmergencyFlag = 1;
+
+      //ПРОВЕРИТЬ!!! если кнопка СТОП зажата при включении
+      if(inputBuf[4] == 0x00){
+        inputBuf[4] = 0x0A;
+      }
+      /*  проверить что будет, если включить машину с включенной стоп кнопкой.
+          если когда-нибудь двин вернёт адрес 0х00 (застаку), но поменять его на главную страницу
+      if(inputBuf[4] = 0x00){
+        pageBeforeEmergencyBuf[9] = 0x10         
+        break;
+      }
+      */
+      pageBeforeEmergencyBuf[9] = inputBuf[4];  //обновляем адрес последней страницы до нажатия кнопки СТОП
+      
+      if(DEBUG){
+        Serial.print("Return page: ");
+        Serial.println(inputBuf[4]);
+      }
+      break;
 
     case 0x4f:  //ответ двина об успехе
       break;
@@ -243,7 +266,7 @@ void parseBuffer() {
       break;
 
     default:
-      showError();
+      showError("connection", 1);
 
       if (DEBUG) {
         Serial.print("parseBuffer() address unknown: ");
@@ -356,6 +379,7 @@ void pressButton() {  // VP11xx
         if(burrataButtonCase == 0){
           burrataButtonFlag = inputBuf[4];    //меняем флаг кнопки
           burrataButtonBuf[7] = inputBuf[4];  //меняем буффер кнопки "буррата"
+          safetyTimer = millis();
         }
         
         //отжимаем нопку на экране
@@ -422,12 +446,12 @@ void pressButton() {  // VP11xx
       break;
     
 
-    case 0x20:  // кнопка начала калибровки
+    case 0x20:  // виртуальная кнопка начала калибровки 
       makeCalibration = 1;
       break;
 
     default:
-      showError();
+      showError("connection", 2);
       if (DEBUG) {
         Serial.print("pressButton() address unknown: ");
         Serial.println(inputBuf[1], HEX);
@@ -535,13 +559,7 @@ void makeResponce() {  // VP20xx
       }
       break;
 
-    case 0x04:  // вкл/выкл прессов
-      pressIsOn = inputBuf[4];
-      if (DEBUG) {
-        Serial.print("pressIsOn = ");
-        Serial.println(pressIsOn);
-      }
-      break;
+
 
     case 0x05:  // вкл/выкл мотора
       rotationIsON = inputBuf[4];
@@ -580,7 +598,7 @@ void makeResponce() {  // VP20xx
       break;
   */
     default:
-      showError();
+      showError("connection", 3);
       if (DEBUG) {
         Serial.print("Make responce address unknown: ");
         Serial.println(inputBuf[1], HEX);
@@ -723,7 +741,6 @@ void calibrContor() {  // VP21xx
       break;
 
     default:
-      showError();
       if (DEBUG) {
         Serial.print("calibrContro() address unknown: ");
         Serial.println(inputBuf[1], HEX);
@@ -735,7 +752,6 @@ void calibrContor() {  // VP21xx
 // ============== адреса ручного включения цилиндров ==================
 void cylinders() {  // VP25xx
 
-  solenoidNum = inputBuf[4];
   switch (inputBuf[1]) {
     case 0x01:  //голова сливок
       digitalWrite(SOLENOID_SWITCH1, inputBuf[4]);
@@ -857,7 +873,7 @@ void cylinders() {  // VP25xx
       break;
 
     default:
-      showError();
+      showError("connection", 5);
       if (DEBUG) {
         Serial.print("Cylinder address unknown: ");
         Serial.println(inputBuf[1], HEX);
@@ -897,7 +913,7 @@ void motorRE(){   //27xx
       break;
 
     default:
-      showError();
+      showError("connection", 6);
       if (DEBUG) {
         Serial.print("motorRE() address unknown: ");
         Serial.println(inputBuf[1], HEX);
@@ -970,6 +986,9 @@ void changeVar() {  // VP30xx
 
     case 0x14:  // изменение процента сливок
       cream = (inputBuf[3] << 8) | inputBuf[4];
+      if (cream > maxCream){                    // если значение сливок на экране больше максимально допустимого значения
+        cream = maxCream;
+      }
       digitalWrite(DOSE_ENABLE, LOW);
       changeMass();  // пересчет процента сливок
       sendCream();   // отправляем значение процентов сливок обратно на экран
@@ -1024,7 +1043,7 @@ void changeVar() {  // VP30xx
       break;
 
     default:
-      showError();
+      showError("connection", 7);
       if (DEBUG) {
         Serial.print("Change var address unknown: ");
         Serial.println(inputBuf[1], HEX);
@@ -1061,27 +1080,27 @@ void setDwin() {
     while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
     
     //  отправка значений переменных циклов
-    sendWashCycleSt1();
+    sendWashCycleSt1();             //  отправка значения цикла 1 мойки цилиндра страчателлы
     while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
-    sendWashCycleCr1();
+    sendWashCycleCr1();             //  отправка значения цикла 1 мойки цилиндра сливок
     while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
-    sendWashCycleSt2();
+    sendWashCycleSt2();             //  отправка значения цикла 2 мойки цилиндра страчателлы
     while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
-    sendWashCycleCr2();
+    sendWashCycleCr2();             //  отправка значения цикла 2 мойки цилиндра сливок
     while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
-    sendWashCycleSt3();
+    sendWashCycleSt3();             //  отправка значения цикла 3 мойки цилиндра страчателлы
     while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
-    sendWashCycleCr3();
+    sendWashCycleCr3();             //  отправка значения цикла 3 мойки цилиндра сливок
     while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
 
     // отправка значений на экран настоек
-    sendMotorRESpeed();
+    sendMotorRESpeed();             //  отправка значения количества оборотов
     while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
 
     //отправить состояния датчиов
-    checkHeaters();
+    checkHeaters();                 //  отправка состояния датчиков тока
     while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
-    checkCoverSensor();
+    checkCoverSensor();             //  отправка состояния датчика крышки
     while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
     checkPressureSensore();
     while(Serial1.read() != 0x4B);  //  проверка сообщения от двина и обнуление буффера
@@ -1228,10 +1247,212 @@ void sendMotorRESpeed(){
 }
 
 // ============== отображает предупреждение на экране =======
-void showError() {
+void showError(char f, int caseNum) {
+  Serial.println("Called showError()");
+  if(f == "br"){    // ошибки функции бурраты
+    switch (caseNum){
+      case 0: //подготовка к работе 
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 1: //идём 75 шагов с ускорением
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 2: //опускаем пресс-форсунку и начали накачку цилиндров
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 3: //проверяем датчик пресс форсунки
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 4: //дозируем
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 5: //ждём, когда вернуться дозаторы
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 6: //крутим чашку
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 7: //сводим левый пресс
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 8: //сводим правый пресс
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 9: //ждём датчик ножа в центре
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 10:  //ждём нож пол секунды
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 11:  //ждём нож у стенки
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 12:  //ждём спаивания и убираем прессы
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 13:  //ждём датчики ножа и прессы чтобы разъехались
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);  
+        break;
+
+      case 14:  //поднимаем редуктор 
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 15:  //опускаем разгрузку
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 16:  //проверяем датчик разгрузки внизу
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      case 17:  //кейс подготовки к выходу
+        Serial.print("ShowEroor BR case");
+        Serial.println(caseNum);
+        break;
+
+      defult:
+
+        if(DEBUG){
+          Serial.print("showError func ERROR in br");
+          Serial.println(caseNum);
+        }
+        break;
+    }
+  }
+
+  if(f == "rt"){    // ошибки функции оборот
+    switch (caseNum){
+      case 0:   //подготовка к работе
+        break;
+      case 1:   //идт по шагам
+        break;
+      case 2:   //идти с ускорением 
+        break;
+      case 3:   //идём на максималках
+        break;
+      case 4:   //замедляемся
+        break;
+      case 5:   //подготовка к завершению функции
+        break;
+      default:
+        break;
+    }
+  }
+
+  if(f == "st"){    // ошибки функции страчателла
+    switch (caseNum){
+      case 0:   //подготовка функции к работе
+        break;
+      case 1:   //опускаем цилиндры
+        break;
+      case 2:   //поднимаем цилиндры
+        break;
+      case 3:   //ждём срабатывания верхних датчиков дозаторов
+        break;
+      case 4:
+        break;
+      default:
+        break;
+    }
+  }
+  
+  if(f == "cheackHeaters"){ // ошибки функции проверки датчика тока
+    switch (caseNum){
+      case 1: //не работает левый
+        
+        break;
+
+      case 2: //не работает правый
+        
+        break;
+
+      case 3: //both not working
+
+        break;
+
+      case 4: //default case
+       
+       break;
+
+
+    }
+  }
+
+  if(f == "connection"){    // error with buffer parsing
+    switch (caseNum){
+      case 0:     //readInput error
+
+        break;
+
+      case 1:     //parseBuffer error
+
+        break;
+
+      case 2:      //pressButton error
+
+        break;
+
+      case 3:       //makeresponse error
+
+        break;
+    
+      case 4:       //calibrControl error
+
+        break;
+
+      case 5:       //cylinders() error
+
+        break;
+
+      case 6:       //motorRE error
+
+        break;
+
+      case 7:        //changeVar error
+
+        break;
+
+      default:
+
+        break;
+    }
+  }
+
   showErrorBuf[7] = 1;
   Serial1.write(showErrorBuf, 8);
 }
+
 
 // ============== отправка количества циклов страчателлы на экране 1 =======
 void sendWashCycleSt1() {
