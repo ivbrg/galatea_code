@@ -1,6 +1,7 @@
 // Atmega 2560
 
-byte DEBUG = 1;
+byte DEBUG = 0;
+byte DEBUGTemp = 1;
 
 // SOLENOIDS
 #define SOLENOID_SWITCH1 35   // голова сливок
@@ -77,6 +78,7 @@ byte DEBUG = 1;
 #include <GyverTimers.h>
 #include <Wire.h>
 #include <OneWire.h>
+//#include <microDS18B20.h>
 #include <DallasTemperature.h>
 #include <ACS712.h>
 #include <EEPROM.h>
@@ -84,30 +86,22 @@ byte DEBUG = 1;
 ACS712 ACS712_L(CURRENT_SENSOR_L, 5.0, 1023, 185);  //инициализация левого датчика тока, дискретность 185мА
 ACS712 ACS712_R(CURRENT_SENSOR_R, 5.0, 1023, 185);  //инициализация правого датчика тока, дискретность 185мА
 
-OneWire oneWireLeft(DS18B20_L);
+OneWire oneWireLeft (DS18B20_L);
+//MicroDS18B20 <DS18B20_L> sensorLeft;
 DallasTemperature sensorLeft(&oneWireLeft);
 
 OneWire oneWireRight(DS18B20_R);
-DallasTemperature sensorRight(&oneWireRight);
-
-// ***** адреса переменных в EEPROM ***** //
-#define EEPROMUserTempAddr     =  0;    //float
-#define EEPROMTempAddr         =  4;    //float
-#define EEPROMMassaAddr        =  8;    //int  
-#define EEPROMCreamAddr        =  10;   //int
-#define EEPROMRotationAddr     =  12;   //int
-#define EEPROMWashCycleSt1     =  14;   //int
-#define EEPROMWashCycleCr1     =  16;   //int
-#define EEPROMWashCycleSt2     =  18;   //int
-#define EEPROMWashCycleCr1     =  20;   //int
-#define EEPROMWashCycleSt3     =  22;   //int
-#define EEPROMWashCycleCr1     =  24;   //int
+//MicroDS18B20 <DS18B20_R> sensorRight;
+DallasTemperature sensorRight(&oneWireRight); 
 
 // переменные датчиков тока (mA)
 float leftHeaterCurrent;
 float rightHeaterCurrent;
 
 // переменные кнопок
+byte autoModeFlag = 0;
+int autoModeDelay = 0;
+
 bool OptionalButtonState = 0;
 
 bool OptionalButton1State = 0;
@@ -120,7 +114,7 @@ uint32_t OptionalButton2Timer;
 uint32_t OptionalButton3Timer;
 
 
-// переменные для подсветки датчиков SS на экране
+// переменные для подсветки датчиков SolinoidSensors на экране
 bool ssState1 = 0;
 bool ssState2 = 0;
 bool ssState3 = 0;
@@ -140,7 +134,11 @@ bool ssState14 = 0;
 byte cylinderState[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //0, SSwitch1, SSwitch2, SSwitch3, ...
 
 // переменные таймеров
-uint32_t tempTimer, pidTimer, stepTimer, pushTimer, pressTimer, testTimer, cycleIconTimer, knifeTimer1, knifeTimer2, cycleTimer, previousCycleTimer, safetyTimer;
+uint32_t tempTimer, pidTimer, stepTimer, pushTimer, pressTimer, testTimer, cycleIconTimer, sendTimer,
+        knifeTimer1, knifeTimer2, cycleTimer, previousCycleTimer, safetyTimer, autoModeDelayTimer,
+        pidTestTimer;
+
+int tempTimerDelay = 0;
 
 // переменные флагов
 byte coverSensorState = 0;            // флаг состояние датчика защитного экрана
@@ -161,10 +159,10 @@ uint32_t stepTimerCR = 0;
 // переменные шаговика RE - круга
 byte stepFlagRE = 0;                  // степ флаг диска
 float checkStepFlagRE = 0;
-int stepsCWSpeed = 4000;              // скорость шаговика по часовой
-int stepsCCWSpeed = 150;              // скорость шаговика против часовой
-int stepsRE = 0;
+int RECWSpeed = 1500;              // скорость шаговика по часовой
+int RECCWSpeed = 150;              // скорость шаговика против часовой
 float RESpeedTest = 0;
+byte wrongDiskPosition = 0;
     //переменные для настройки RE на странице "настройки"
 byte motorREON = 0;
 int motorRESpeed = 1000;
@@ -185,7 +183,7 @@ int currentCRStep = 0;
 byte CRInMotionFlag = 0;
 
 // переменные ПИД
-float IntL, tempLeft, errorL, oldErrorL, integralL, diffL, p = 700, ti = 8, td = 200;
+float IntL, tempLeft, errorL, oldErrorL, integralL, diffL, p = 200, ti = 50, td = 200;
 float IntR, tempRight, errorR, oldErrorR, integralR, diffR;
 
 float setpoint = 50;
@@ -200,7 +198,7 @@ byte calibrationCase = 0;  // флаг места калибровки
 byte mainButton = 0;    // состояние главной кнопки
 byte digitalPedal = 1;  // состояние
 
-byte stateCS = 1;       //состояние датчика крышки
+#define stateCS 1;       //состояние датчика крышки    !!! ВСЕГДА ЕДИНИЦА, ТК ДАТЧИК НЕ ИСПОЛЬЗУЕМ? поэтому дефайн
 byte statePS = 0;       //состояние датчика давления
 byte stateLH = 0;       //состояние датчика левого ТЭНа
 byte stateRH = 0;       //состояние датчика правого ТЭНа
@@ -224,21 +222,13 @@ byte testFlag = 0;                // тестовый флаг
 byte doCycle = 0;                 // флаг начала цикла для основного лупа
 byte numCycle = 0;                // номер цикла
 
-byte washCycleSt1 = 10;           // циклов загрузки страчателлы
-byte washCycleCr1 = 10;           // циклов загрузки сливок
+byte washCycleSt = 10;           // циклов загрузки страчателлы
+byte countWashCycleSt = 0;
+byte washCycleCr = 10;           // циклов загрузки сливок
 //?!?!byte washCycle1Start = 0;         // флаг загрузки
-byte cycle1Case = 0;              // кейс для функции cycle1
-
-byte washCycleSt2 = 10;           // циклов разргузки страчателлы
-byte washCycleCr2 = 10;           // циклов разгрузки сливок
-//?!?!byte washCycle2Start = 0;         // флаг разгрузки
-byte cycle2Case = 0;              // кейс для функции cycle2
-
-byte washCycleSt3 = 10;           // количество циклов мойки
-byte washCycleCr3 = 10;           // количество циклов мойки
-//?!?!byte washCycle3Start = 0;         
-byte cycle3Case = 0;              // кейс для функции cycle3
-
+byte countWashCycleCR = 0;
+byte cycleCase = 0;              // кейс для функции cycle
+byte cycleFlag[] = { 0, 0, 0 };      // флаги дозации цилиндров
 
 byte err = 0;
 float tempToSend;  // вспомогательная переменная для проверки температуры
@@ -246,27 +236,41 @@ float tempToSendL;
 float tempToSendR;
 float overHeat = 50.0;               // температура отключения ТЭНов
 
-float userTemp = 30.0;               // температура пайки
+// ***** адреса переменных в EEPROM ***** //
+byte EEPROMuserTemp      = 0;    //float  
+byte EEPROMtime          = 4;    //float     
+byte EEPROMMassa         = 8;    //int  
+byte EEPROMCream         = 10;   //int
+byte EEPROMRotation      = 12;   //int
+
+#define EEPROMWashCycleSt  14;   //int
+#define EEPROMWashCycleCr  16;   //int
+
+#define EEPROMTotalCycles   26;   //long
+
+float userTemp;
+float time;     
+int massa; 
+int cream;   
+int rotation;
+
 
 char userTempCharArray[] = "0000";   // массив для перевода температуры из ascii в float
 char leftTempCharArray[] = "0000";   // массив для перевода левого ТЭНа из float в ascii
 char rightTempCharArray[] = "0000";  // массив для перевода правого ТЭНа из float в ascii
-float time = 2.5;                    // время пайки
 char userTimeCharArray[] = "0000";   // массив для перевода времени пайки из ascii в float
 
-int massa = 95;  // страчателла в мл
 int STmassa;
 int maxMassa = 225;  // максимальное значение массы (без пропорции)
 
-int cream = 10;  // сливки в %
 int CRmassa;
 int maxCream = 40;  // максимальное значение сливок
 
-int rotation = 2;  // количество оборотов бурраты
 
 
 //переменные калибровки
 byte calibrateVolumeAtStart = 1;
+byte calibrationButtonLights = 0;       // флаг включения подсветки кнопок после калибровки
 byte startCalibrFlag = 0;
 byte calibrateVolumeFlag = 0;
 byte calibrateVolumeCase = 0;
@@ -285,6 +289,7 @@ byte emergencyFlag = 0;             // флаг нажатого грибка
 byte emergencyCase = 0;
 byte pageBeforeEmergency;           // последняя страница перед нажатием грибка
 byte pageBeforeEmergencyFlag = 0;
+byte errorReset = 0;                // переменная для сброса ошибки
 
 
 // буффер чтения из DWIN
@@ -335,11 +340,17 @@ byte washCycleSt3Buf [] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X28, 0X0, 0x0 };
 byte washCycleCr3Buf [] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X2A, 0X0, 0x0 };
 
 //буффер анимированной иконки циклов
-byte  cycleIconLeftBuff [] = { 0X5A, 0XA5, 0X5, 0X82, 0X13, 0X14, 0X0, 0x0 };
-byte  cycleIconRightBuff [] = { 0X5A, 0XA5, 0X5, 0X82, 0X13, 0X15, 0X0, 0x0 };
+byte cycleIconLeftBuff [] = { 0X5A, 0XA5, 0X5, 0X82, 0X13, 0X14, 0X0, 0x0 };
+byte cycleIconRightBuff [] = { 0X5A, 0XA5, 0X5, 0X82, 0X13, 0X15, 0X0, 0x0 };
+byte cycleIconBuff [] = { 0X5A, 0XA5, 0X5, 0X82, 0X13, 0X14, 0X0, 0x0 };
+
 
 //буффер вывода сообщения о ошибке в пароле
 byte showErrorBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X00, 0X0, 0x0 };                    // буффер отправки ошибки
+byte showErrorMessageBuf[] = { 0X5A, 0XA5, 0X09, 0X82, 0X40, 0X00, 0X45, 0x20, 0x00, 0x00, 0xff, 0xff};    // буффер номера ошибки
+byte clearErrorDisplayBuf[] = {0x5A, 0xA5, 0x07, 0x82, 0x40, 0x00, 0x20, 0x20, 0x20, 0x20};    //буффер очистки сообщения
+byte errorCode[] = "0000";                                  // массив для перевод номера кода в хекс для отправки на экран
+
 //буффер иконок датчиков цилиндров 
 byte ssStateBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X26, 0X00, 0X0, 0x0 };                      // буффер отправки состояния датчика цилиндра
 
@@ -350,15 +361,17 @@ byte stateLHBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X14, 0X02, 0X0, 0x0 };           
 byte stateRHBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X14, 0X03, 0X0, 0x0 };                      // буффер состояния датчика правого ТЭНА RH
 
 //буфферы кнопок
+byte autoModeButtonBuf[] =  { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X01, 0X0, 0x0 };           // буффер отправки значения кнопки вкл/выкл
 byte mainButtonBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X02, 0X0, 0x0 };           // буффер отправки значения кнопки вкл/выкл
 byte burrataButtonBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X11, 0X0, 0x0 };        // буффер отправки значения кнопки страчателлы
 byte rotateDiskButtonBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X13, 0X0, 0x0 };     // буффер отправки значения кнопки страчателлы
 byte strachiatellaButtonBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X15, 0X0, 0x0 };  // буффер отправки значения кнопки страчателлы
+byte infoButtonBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X00, 0X0, 0x0 };          // буффер отправки значения кнопки информации
 
 //буфферы для отжатия кнопки в один клик
 byte burrataButtonIncrementalBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X10, 0X0, 0x0 };        // буффер отправки значения кнопки буррата
 byte rotateDiskButtonIncrementalBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X12, 0X0, 0x0 };     // буффер отправки значения кнопки страчателлы
-byte strachiatellaButtonIncrementalBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X14, 0X0, 0x0 };  // буффер отправки значения кнопки страчателлы
+byte strachiatellaButtonIncrementalBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X00, 0X0, 0x0 };  // буффер отправки значения кнопки страчателлы
 
 //?!?!
 //byte popUpCalibrPageBuf[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X20, 0X11, 0x20 };  // буффер отправки вызова попап меню с калибровкой
@@ -379,20 +392,27 @@ byte loadPageAddrBuf[] = { 0X5A, 0XA5, 0X07, 0X82, 0X00, 0X84, 0X5A, 0x01, 0x01,
 byte unloadPageAddrBuf[] = { 0X5A, 0XA5, 0X07, 0X82, 0X00, 0X84, 0X5A, 0x01, 0x01, 0x3F };
 
 //буфферы кнопок калибровок
+
 byte calibrButtonsBuf[] = { 0X5A, 0XA5, 0X05, 0X82, 0X21, 0X00, 0X00, 0x00 };  // буффер отправки состояния кнопок при калибровке
 
 byte switchBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X11, 0X00, 0X0, 0x0 };
 
 //буффер количества сделанных циклов
-byte todayCyclesBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X30, 0X0, 0x0 };      // буффер состояния датчика правого ТЭНА RH
+byte todayCyclesBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X30, 0X0, 0x0 };      // буффер передачи сделанного за включение
 int todayCycles = 0;
 byte todayCycleFlag = 0;
+
+byte totalCycleBuff[] = { 0X5A, 0XA5, 0X5, 0X82, 0X30, 0X34, 0X0, 0x0 };
+long totalCycle = 0;
+byte totalCycleFlag = 0;
+
 //буффер отправки длинны времени цикла на экран
 byte timerBuf[] = { 0X5A, 0XA5, 0X7, 0X82, 0X30, 0X32, 0X00, 0x00, 0X00, 0x00 };
 char timerCharArray[] = "0000";      // массив для перевода времени цикла из asdcii в float
 float cycleTime = 0;
 float sec = 0.0;
 float mSec = 0.0;
+
 
 
 void setup() {
@@ -456,6 +476,8 @@ void setup() {
   // прерывания детектора нуля
   attachInterrupt(1, isr, RISING);
   Timer2.enableISR();
+  
+  Timer3.enableISR();
 
   // RXTX
   Serial.begin(115200);
@@ -463,19 +485,48 @@ void setup() {
   // RS232
   Serial1.begin(115200);
 
-  // 
+  // датчики температуры
+/*
+  if(sensorLeft.online()){
+    sensorLeft.setResolution(10);
+    sensorLeft.requestTemp();
+  } else {
+    Serial.println("Left temp sens off!!!");
+  }
+
+  if(sensorRight.online()){
+    sensorRight.setResolution(10);
+    sensorRight.requestTemp();
+  } else {
+    Serial.println("Right temp sens off!!!");
+  }
+
+*/
   sensorLeft.begin();
+  sensorLeft.setResolution(10);
   sensorLeft.setWaitForConversion(false);
+  sensorLeft.requestTemperatures();
+  
   sensorRight.begin();
+  sensorRight.setResolution(10);
   sensorRight.setWaitForConversion(false);
+  sensorRight.requestTemperatures();
+  
+  tempTimerDelay = 750 / (1 << (12 - 10));
+  tempTimer = millis();
 
-
+  EEPROM.get(EEPROMuserTemp, userTemp); // температура пайки
+  EEPROM.get(EEPROMtime, time);     // время пайки в сек.
+  EEPROM.get(EEPROMMassa, massa);         // страчателла в мл
+  EEPROM.get(EEPROMCream, cream);         // сливки в %
+  EEPROM.get(EEPROMRotation, rotation);   // количество оборотов бурраты
 
 
   //ПЕРЕМЕСТИТЬ ВЫСТАВЛЕНИЯ В КАЛИБРОВКУ!
+  
   digitalWrite(SOLENOID_SWITCH6, HIGH);  //страч
   cylinderState[6] = 1;                  //запоминаем состояние цилиндра
-  digitalWrite(SOLENOID_SWITCH7, HIGH);  //сливки
+  digitalWrite(SOLENOID_SWITCH7, HIkGH);  //сливки
   cylinderState[7] = 1;                  //запоминаем состояние цилиндра
   digitalWrite(SOLENOID_SWITCH4, HIGH);  //подставка
   cylinderState[4] = 1;                  //запоминаем состояние цилиндра
@@ -483,27 +534,28 @@ void setup() {
   //проверяем крышку, датчик давления, ТЭНы
   //checkSensors();
 
-  //поднимаем редуктор вверх с кручением
-  stepTimerRE = millis();
-  safetyTimer = millis();
-  while (digitalRead(SOLENOID_SENSOR10) == 1) {  //редуктор поднят - идём дальше
-    if (micros() - stepTimerRE >= 500) {
-      stepTimerRE = micros();
-      makeRE_CCWR();
+  // проверяем давление и поднимаем редуктор
+  if(!digitalRead(PRESSURE_METER)){ //если датчик давления не включен
+    //поднимаем редуктор вверх с кручением
+    stepTimerRE = millis();
+    safetyTimer = millis();
+    while (digitalRead(SOLENOID_SENSOR10) == 1) {  //редуктор поднят - идём дальше
+      if (micros() - stepTimerRE >= 500) {
+        stepTimerRE = micros();
+        makeRE_CCWR();
+      }
+      digitalWrite(SOLENOID_SWITCH10, HIGH);  //поднимаем редуктор
+      cylinderState[10] = 1; 
+      if(safetyTimer > 5000){
+        showError('a', 1);
+        //ДОПИСАТЬ ПРЕДУПРЕЖЕНИЕ
+      }
     }
-    digitalWrite(SOLENOID_SWITCH10, HIGH);  //поднимаем редуктор
-    cylinderState[10] = 1; 
-    if(safetyTimer > 5000){
-
-      //ДОПИСАТЬ ПРЕДУПРЕЖЕНИЕ
-      break;
-    }
+  } else {
+    showError('a', 0);
   }
-  safetyTimer = 0;
-
 
   delay(2000);
-
 
   //загрузка параметров
   setDwin();
@@ -518,169 +570,6 @@ void setup() {
   digitalWrite(ILLUMINATION_OPTION2, HIGH);
   digitalWrite(ILLUMINATION_OPTION3, HIGH);
   */
-}
-
-void isr() {
-  static int lastDim;
-  digitalWrite(DIMMER_L, LOW);
-  digitalWrite(DIMMER_R, LOW);
-  if (lastDim != dimmerL) {
-    Timer2.setPeriod(lastDim = dimmerL);
-  } else {
-    Timer2.restart();
-  }
-}
-
-ISR(TIMER2_A) {
-  if (heaterIsOn && tempLeft < overHeat && tempRight < overHeat) {
-    digitalWrite(DIMMER_L, HIGH);
-    digitalWrite(DIMMER_R, HIGH);
-    Timer2.stop();
-  }
-}
-
-void pid() {
-  oldErrorL = errorL;
-  errorL = userTemp - tempLeft;
-  IntL = IntL + (oldErrorL + errorL) / 2;
-  integralL = constrain(IntL * (1 / ti), 0, 9300);
-  if (integralL == 9300) {
-    IntL = integralL;
-  }
-  diffL = (errorL - oldErrorL) * td;
-  outL = constrain(p * errorL + integralL + diffL, 500, 9300);
-
-
-  oldErrorR = errorR;
-  errorR = userTemp - tempRight;
-  IntR = IntR + (oldErrorR + errorR) / 2;
-  integralR = constrain(IntR * (1 / ti), 0, 9300);
-  if (integralR == 9300) {
-    IntR = integralR;
-  }
-  diffR = (errorR - oldErrorR) * td;
-  outR = constrain(p * errorR + integralR + diffR, 500, 9300);
-}
-
-void getTemp() {
-  sensorLeft.requestTemperatures();
-  sensorRight.requestTemperatures();
-
-  tempLeft = sensorLeft.getTempCByIndex(0);
-  tempRight = sensorRight.getTempCByIndex(0);
-}
-
-byte pedalStatus() {
-  if (digitalRead(PEDAL) == LOW || digitalPedal == LOW) {
-    return 0;
-  }
-  return 1;
-}
-
-
-// проверка датчиков тока
-void checkHeaters() {
-  byte heaterState = 0;
-
-  digitalWrite(DIMMER_L, HIGH);
-  leftHeaterCurrent = ACS712_L.mA_AC(50, 1);
-  digitalWrite(DIMMER_L, LOW);
-
-  digitalWrite(DIMMER_R, HIGH);
-  rightHeaterCurrent = ACS712_R.mA_AC(50, 1);
-  digitalWrite(DIMMER_R, LOW);
-
-  //Serial.print("Left heater: ");
-  //Serial.println(leftHeaterCurrent);
-  //Serial.print("Right heater: ");
-  //Serial.println(rightHeaterCurrent);
-
-  //проверяем тэны
-  if (leftHeaterCurrent < 200.0) {
-    heaterState += 1;
-  }
-  if (rightHeaterCurrent < 200.0) {
-    heaterState += 2;
-  }
-
-  Serial.print("state: ");
-  Serial.println(heaterState);
-
-  //обработка проверки работы тэнов
-
-  switch (heaterState) {
-    case 0:  //ТЭНы ок
-      stateLH = 0;
-      stateRH = 0;
-      break;
-
-    case 1:  //не работает левый
-      stateLH = 1;
-      stateLHBuff[7] = stateLH;
-      Serial1.write(stateLHBuff, 8);
-
-      Serial.println("left not working");
-      showError("cheackHeaters", heaterState);
-      break;
-
-    case 2:  //не работает правый
-      stateRH = 1;
-      stateRHBuff[7] = stateRH;
-      Serial1.write(stateRHBuff, 8);
-      
-      Serial.println("right not cheackHeaters");
-      showError("cheackHeaters", heaterState);
-      break;
-
-    case 3:  //не работают оба
-      stateLH = 1;
-      stateLHBuff[7] = stateLH;
-      Serial1.write(stateLHBuff, 8);
-      
-      stateRH = 1;
-      stateRHBuff[7] = stateRH;
-      Serial1.write(stateRHBuff, 8);
-
-      Serial.println("both not working");
-      showError("cheackHeaters", heaterState);
-      break;
-
-    default:
-      showError("cheackHeaters", 4);
-      Serial.println("checkHeaters() error!");
-      break;
-  }
-
-  heaterState = 0;
-}
-
-// проверка датчика CS !!! отключили, тк нет крышки
-void checkCoverSensor() {
-  /*
-  //stateCS = digitalRead(COVER_SENSOR);
-  stateCS = 1;                              //заглушка для датчика крышки
-  stateCSBuff[7] = stateCS;
-  Serial1.write(stateCSBuff, 8);
-
-    if(stateCS){ //защитная крышка открыта
-      coverSensorError = 1;
-    } else {
-      coverSensorError = 0;
-    }
-
-    if(DEBUG){
-      Serial.print("stateCS: ");
-      Serial.println(stateCS);
-    }
-*/
-}
-
-
-// проверка датчика PS
-void checkPressureSensore(){
-  statePS = digitalRead(PRESSURE_METER);
-  statePSBuff[7] = statePS;
-  Serial1.write(statePSBuff, 8);
 }
 
 // чтение сообщения с двина
@@ -700,111 +589,328 @@ void readDwin() {
 
 //основной цикл
 void loop() {
-/*
-  // работа с температурой
-  if (millis() - tempTimer >= 800) {
-    tempTimer = millis();
-    getTemp();
-    if (tempToSendL != tempLeft) {
-      tempToSendL = tempLeft;
-      sendLeftTemp();
-    }
-    if (tempToSendR != tempRight) {
-      tempToSendR = tempRight;
-      sendRightTemp();
-    }
-  }
 
-  // работа с ПИД
-  if (millis() - pidTimer >= 40) {
-    pidTimer = millis();
-    pid();
-    dimmerL = map(outL, 500, 9300, 9300, 500);
-    dimmerR = map(outR, 500, 9300, 9300, 500);
-  }
-*/
+  //СТОП КНОПКА ОТЖАТА
+  if(digitalRead(STOP)){     
 
-  if(digitalRead(STOP)){                                     //СТОП кнопка включена
-    if(emergencyCase){                                       //если была нажата кнопка СТОП
-      Serial1.write(pageBeforeEmergencyBuf, 10);                 //возвращаем страницу, которая была до нажатия стоп кнопки
+    //дописать ТЭНЫ и ПИД сюда
+
+    //если стопкнопку отжали
+    //которая была до нажатия стоп кнопки и включаем подсветку кнопок
+    if(emergencyCase > 1){                                       
       
-      //включаем подсветку кнопок
-      digitalWrite(ILLUMINATION_OPTION1, HIGH);
-      digitalWrite(ILLUMINATION_OPTION2, HIGH);
-      digitalWrite(ILLUMINATION_OPTION3, HIGH);
+      //возвращенпе стрницы, которая была до экстренного стопа
+      Serial1.write(pageBeforeEmergencyBuf, 10);                 
+
+      //переходим в дефолтную позицию
+      defaultPosition();
 
       emergencyCase = 0;
     }
 
+      // опрос датчика температуры
+    // ПОПРОБОВАТЬ ИЗМЕНИТЬ БИТНОСТЬ ДАТЧИКА И ОПРАШИВАТЬ ТЕМПЕРАТУРУ НЕ ЧЕРЕЗ 800, а 100
+    if(millis() - tempTimer >= tempTimerDelay && !rotateDiskButtonFlag && !calibrateVolumeFlag){
+      getTemperature(); 
+      tempTimer = millis();
+
+      
+      if (tempToSendL != tempLeft) {
+        tempToSendL = tempLeft;
+        sendLeftTemp();
+      }
+      if (tempToSendR != tempRight) {
+        tempToSendR = tempRight;
+        sendRightTemp();
+      }
+      
+      
+    } 
+
+    // работа с ПИД
+    if(heaterIsOn && !rotateDiskButtonFlag){
+      if (millis() - pidTimer >= tempTimerDelay) {
+        pidTimer = millis();
+        pid();
+        dimmerL = map(outL, 500, 9300, 9300, 500);
+        dimmerR = map(outR, 500, 9300, 9300, 500);
+        if(DEBUGTemp){
+          //Serial.print("dimmerL: ");
+          //Serial.print(dimmerL);
+          //Serial.print(" dimmerR: ");
+          //Serial.println(dimmerR);
+          pidVaulesMonitor();
+
+          
+        }
+      }
+    }
+    
     // если при включении не была сделана калибровка дозаторов
-    if(calibrateVolumeAtStart){
+    if(calibrateVolumeAtStart > 0){
       if(digitalRead(SOLENOID_SENSOR11) == 0 && digitalRead(SOLENOID_SENSOR13) == 0){
         calibrateVolumeFlag = 1;
       }
     }
+
     //калибровка объёма дозаторов
     if (calibrateVolumeFlag){
       calibrateVolume();
     }
 
-
-    // включена кнопка "буррата"
-    if(!digitalRead(OPTIONAL_BUTTON1)){                      // включена кнопка "буррата" на машине
-      burrataButtonFlag = 1;                                 // меняем флаг кнопки
-      burrataButtonBuf[7] = 1;                               // меняем буффер кнопки "буррата"
-      safetyTimer = millis();
-    }
-    if (burrataButtonFlag) {                                 // включена кнопка "буррата" на экране или машине
-      burrataButton();                                     // запускаем функцию изготовления бурраты
-      if(millis() - safetyTimer > 3000){                                // проверяем не застряли ли по ходу цикла исполнения - обновляем таймер в функции бурраты
-        showError("br", burrataButtonCase);
-
-        Serial.print("Last burrata Case: ");
-        Serial.println(burrataButtonCase);
-        Serial.print("SafetyTimer: ");
-        Serial.println(safetyTimer);
-        burrataButtonCase = 0;
-        burrataButtonFlag = 0;
-        
-        burrataButtonBuf[7] = 0;                              //отправляем значение на экран  
-        Serial1.write(burrataButtonBuf, 8); 
-        digitalWrite(ILLUMINATION_OPTION1, HIGH);             //выключаем кнопку
-        } 
-      blinkButton1(500);                                      //мигаем кнопой
-    }
-
-    // включена кнопка "оборот"
-    if(!digitalRead(OPTIONAL_BUTTON2)){         // включена кнопка "оборот" на машине
-      rotateDiskButtonFlag = 1;                 // меняем флаг кнопки
-      rotateDiskButtonBuf[7] = 1;               // меняем буффер "оборот"
-    }
-    if (rotateDiskButtonFlag) {
-      //запускаем функцию оборота
-      rotateDiskButton();
-      blinkButton2(500);
-//      blinkButton(500, ILLUMINATION_OPTION2);                                     //мигаем кнопой
-    } 
-
-    // включена кнопка "масса"
-    if(!digitalRead(OPTIONAL_BUTTON3)){
-      straciatellaButtonFlag = 1;
-      strachiatellaButtonBuf[7] = 1;
-    }
-    if (straciatellaButtonFlag){
-      straciatellaButton();
-      blinkButton(500, ILLUMINATION_OPTION3);
-    }
-
-
     // перемещаем датчик страчателлы в нужную координату
     if (STInMotionFlag == 1 && calibrateVolumeFlag == 0) {
       calcMassaST();
     }
+
     // перемещаем датчик сливок в нужную координату
     if (CRInMotionFlag == 1 && calibrateVolumeFlag == 0) {
       calcMassaCR();
     }
 
+
+    // ***** изготовление бурраты *****
+    // если калибровка была сделана
+    if(calibrDone){
+
+      // если включен автоматичский режим
+      if (autoModeFlag == 1){
+        // нажали на кнопку "буррата" на машине
+
+        if(!digitalRead(OPTIONAL_BUTTON1)){
+          Serial.print("optional button1 state: ");
+          Serial.println(digitalRead(OPTIONAL_BUTTON1));
+          if(burrataButtonFlag){
+            if(burrataButtonCase > 1){
+
+              //TODO сразу выходить из автомод, обнулять кейс и перейти в функцию дефолт. 
+
+              // выключаем автоматический режим
+              autoModeFlag = 0;
+
+            }
+          } else {
+            // меняем флаг кнопки, чтобы начать выполнять функцию "буррата"
+            burrataButtonFlag = 1;
+            Serial.println("burrataButtonFlag: 1");
+
+            // меняем буффер кнопки "буррата" для отправки на экран
+            burrataButtonBuf[7] = 1;   
+
+            // запускаем таймер безопасности
+            safetyTimer = millis();    
+          }
+      }
+
+        // включена ли кнопка "буррата" на экране или машине
+        if (burrataButtonFlag) {      
+
+        // запускаем функцию изготовления бурраты  
+        burrataButton();                         
+
+        // проверяем не застряли ли по ходу цикла исполнения          
+        if(millis() - safetyTimer > 3000){ 
+
+          // если застряли, то отправляем номер кейса из функции "буррата"
+          // для отображения номера ошибки  
+          showError('b', burrataButtonCase);
+
+          // и отправляем информацию в серийник для диагностики
+          if(DEBUG){
+            Serial.print("Last burrata Case: ");
+            Serial.println(burrataButtonCase);
+            Serial.print("SafetyTimer: ");
+            Serial.println(safetyTimer);
+          }
+
+          // сбрасываем кейс и флаг функции
+          burrataButtonCase = 0;
+          burrataButtonFlag = 0;
+
+          //отправляем значение на экран
+          burrataButtonBuf[7] = 0;                                
+          Serial1.write(burrataButtonBuf, 8); 
+
+          //включаем подсветку кнопки
+          digitalWrite(ILLUMINATION_OPTION1, HIGH);             
+          } 
+
+        // мигаем кнопой со скоростью аргумента функции
+        blinkButton1(500);                                      
+      }
+
+    
+        // если не включен автоматический режим, то 
+    // позволяем обрабатывать другие кнопки и функции 
+      } else {
+
+      // ***** изготовление бурраты *****
+
+      // нажали на кнопку "буррата" на машине
+      if(!digitalRead(OPTIONAL_BUTTON1) && !rotateDiskButtonFlag && !straciatellaButtonFlag){ 
+
+        // меняем флаг кнопки, чтобы начать выполнять функцию "буррата"
+        burrataButtonFlag = 1;       
+
+        // меняем буффер кнопки "буррата" для отправки на экран
+        burrataButtonBuf[7] = 1;   
+
+        // запускаем таймер безопасности
+        safetyTimer = millis();
+      }
+
+      // включена ли кнопка "буррата" на экране или машине
+      if (burrataButtonFlag) {      
+
+        // запускаем функцию изготовления бурраты  
+        burrataButton();                         
+
+        // проверяем не застряли ли по ходу цикла исполнения          
+        if(millis() - safetyTimer > 3000){ 
+
+          // если застряли, то отправляем номер кейса из функции "буррата"
+          // для отображения номера ошибки  
+          showError('b', burrataButtonCase);
+
+          // и отправляем информацию в серийник для диагностики
+          if(DEBUG){
+            Serial.print("Last burrata Case: ");
+            Serial.println(burrataButtonCase);
+            Serial.print("SafetyTimer: ");
+            Serial.println(safetyTimer);
+          }
+
+          // сбрасываем кейс и флаг функции
+          burrataButtonCase = 0;
+          burrataButtonFlag = 0;
+
+          //отправляем значение на экран
+          burrataButtonBuf[7] = 0;                                
+          Serial1.write(burrataButtonBuf, 8); 
+
+          //включаем подсветку кнопки
+          digitalWrite(ILLUMINATION_OPTION1, HIGH);             
+          } 
+
+        // мигаем кнопой со скоростью аргумента функции
+        blinkButton1(500);                                      
+      }
+
+
+          // ***** оборот *****
+
+      // включена кнопка "оборот"
+      if(!digitalRead(OPTIONAL_BUTTON2) && !burrataButtonFlag && !straciatellaButtonFlag){         // включена кнопка "оборот" на машине
+        rotateDiskButtonFlag = 1;                 // меняем флаг кнопки
+        rotateDiskButtonBuf[7] = 1;               // меняем буффер "оборот" для отправки в 
+        safetyTimer = millis();
+      }
+      if (rotateDiskButtonFlag) {
+        // запускаем функцию оборота
+        rotateDiskButton();
+
+        // проверяем была ли ошибка  
+        if(millis() - safetyTimer > 3000){                                // проверяем не застряли ли по ходу цикла исполнения - обновляем таймер в функции бурраты
+          showError('r', rotateDiskButtonCase);
+          if(DEBUG){
+            Serial.print("Last rotation Case: ");
+            Serial.println(rotateDiskButtonCase);
+            Serial.print("SafetyTimer: ");
+            Serial.println(safetyTimer);
+          }
+          rotateDiskButtonCase = 0;
+          rotateDiskButtonFlag = 0;
+          RECWSpeed = 1500;
+          checkStepFlagRE = 0;
+
+          rotateDiskButtonBuf[7] = 0;                           //отправляем значение на экран  
+          Serial1.write(rotateDiskButtonBuf, 8); 
+          digitalWrite(ILLUMINATION_OPTION2, HIGH);             //выключаем кнопку
+        } 
+        blinkButton2(500);
+  //      blinkButton(500, ILLUMINATION_OPTION2);                                     //мигаем кнопой
+    } 
+
+      // включена кнопка "масса"
+      if(!digitalRead(OPTIONAL_BUTTON3) && !burrataButtonFlag && !rotateDiskButtonFlag){
+        straciatellaButtonFlag = 1;
+        strachiatellaButtonBuf[7] = 1;
+      }
+      if (straciatellaButtonFlag){
+        straciatellaButton();
+        blinkButton(500, ILLUMINATION_OPTION3);
+      }
+
+    
+      //!!!! ДОПИСАТЬ:
+      // проверяем вспомогательный цикл
+      if(doCycle){
+        switch(numCycle){
+          case 0:
+            if(DEBUG){
+              Serial.println("doCycle zero case error");
+            }
+          break;
+
+          case 1:
+            cycle();
+            break;
+
+          default:
+            if(DEBUG){
+              Serial.print("doCycle in loop error!!!");
+            }
+            break;
+        }
+      }
+
+      //управление мотором из настроек
+      if(motorREON){
+        if(motorREDir){
+          if(cylinderState[5] == 0){    //если пресс-форсунка поднята
+            if (micros() - stepTimerRE >= motorRESpeed) {
+              stepTimerRE = micros();
+              makeRE_CWR();  // вращаем мотора диска
+          }
+
+          }
+        } else {
+          if (micros() - stepTimerRE >= motorRESpeed) {
+            stepTimerRE = micros();
+            makeRE_CCWR();  // вращаем мотора диска
+          }
+        }
+      }
+
+      //включаем редуктор вверх-вниз из настроек
+
+      //?!?!?! что такое клабирпозиш и зачем он?!
+      if(calibrPosition){
+        if(digitalRead(SOLENOID_SENSOR10) && !digitalRead(SOLENOID_SENSOR12)){
+          digitalWrite(SOLENOID_SWITCH10, HIGH);
+          if(todayCycleFlag == 0){
+            todayCycleFlag = 1;
+            todayCycles++;
+            todayCyclesBuff[6] = highByte(todayCycles);
+            todayCyclesBuff[7] = lowByte(todayCycles);
+            Serial1.write(todayCyclesBuff, 8);
+          }
+        }
+        if(digitalRead(SOLENOID_SENSOR12) && !digitalRead(SOLENOID_SENSOR10)){
+          digitalWrite(SOLENOID_SWITCH10, LOW);
+          todayCycleFlag = 0;
+        }
+      }
+
+      //проверяем датчики цилиндров
+      if(checkSolenoidSensorsFlag){
+        checkSolenoidSensors();
+      }
+    }
+    } else {
+      //дописать ошибку о том, что не было калибровки
+      // изменить состояние кнопки инфо
+    }
     //проверка датчика CS
     /*
     if(stateCS != digitalRead(COVER_SENSOR)){
@@ -817,83 +923,12 @@ void loop() {
       checkPressureSensore();
     };
 
-
-    //!!!! ДОПИСАТЬ:
-    // проверяем вспомогательный цикл
-    if(doCycle){
-      switch(numCycle){
-        case 0:
-          if(DEBUG){
-            Serial.println("doCycle zero case error");
-          }
-        break;
-
-        case 1:
-          cycle1();
-          break;
-
-        case 2:
-          cycle2();
-          break;
-
-        case 3:
-          cycle3();
-          break;
-
-        default:
-          if(DEBUG){
-            Serial.print("doCycle in loop error!!!");
-          }
-          break;
-      }
-    }
-
-    //управление мотором из настроек
-    if(motorREON){
-      if(motorREDir){
-        if(cylinderState[5] == 0){    //если пресс-форсунка поднята
-          if (micros() - stepTimerRE >= motorRESpeed) {
-            stepTimerRE = micros();
-            makeRE_CWR();  // вращаем мотора диска
-        }
-
-        }
-      } else {
-        if (micros() - stepTimerRE >= motorRESpeed) {
-          stepTimerRE = micros();
-          makeRE_CCWR();  // вращаем мотора диска
-        }
-      }
-    }
-
-    //включаем редуктор вверх-вниз из настроек
-    if(calibrPosition){
-      if(digitalRead(SOLENOID_SENSOR10) && !digitalRead(SOLENOID_SENSOR12)){
-        digitalWrite(SOLENOID_SWITCH10, HIGH);
-        if(todayCycleFlag == 0){
-          todayCycleFlag = 1;
-          todayCycles++;
-          todayCyclesBuff[6] = highByte(todayCycles);
-          todayCyclesBuff[7] = lowByte(todayCycles);
-          Serial1.write(todayCyclesBuff, 8);
-        }
-      }
-      if(digitalRead(SOLENOID_SENSOR12) && !digitalRead(SOLENOID_SENSOR10)){
-        digitalWrite(SOLENOID_SWITCH10, LOW);
-        todayCycleFlag = 0;
-      }
-    }
-
-    //проверяем датчики цилиндров
-    if(checkSolenoidSensorsFlag){
-      checkSolenoidSensors();
-    }
     // проверка наличия сообщения с экрана и обработка сообщения
     readDwin();
 
   //ЗАЖАТА СТОП КНОПКА
   } else {    
-    switch(emergencyCase){                                //обрабатываем действия при нажатии стоп кнопки
+    switch(emergencyCase){                                //СТОП КНОПКА НАЖАТА
       case 0:
         Serial1.write(getCurrentPageBuff, 7);             //отправляем в DWIN запрос на возврат нынешней страницы
         emergencyCase++;
@@ -907,17 +942,51 @@ void loop() {
 
           pageBeforeEmergencyFlag = 0;                      //обновляем адрес последней страницы до нажатия кнопки СТОП  
 
-          if(calibrateVolumeAtStart == 0){
-            digitalWrite(ILLUMINATION_OPTION1, LOW);
-            digitalWrite(ILLUMINATION_OPTION2, LOW);
-            digitalWrite(ILLUMINATION_OPTION3, LOW);
-          }
+        // выключаем подсветку кнопок  
+          digitalWrite(ILLUMINATION_OPTION1, LOW);
+          digitalWrite(ILLUMINATION_OPTION2, LOW);
+          digitalWrite(ILLUMINATION_OPTION3, LOW);
+          
+
+          //calibrateVolumeAtStart = 0;
 
           emergencyCase++;
         }
         break;
 
       case 2:
+        // обнулили все флаги и кейсы
+        burrataButtonFlag = 0;
+        burrataButtonCase = 0;
+
+        // отправляем значение кнопки на экран 
+        burrataButtonBuf[7] = 0x00;                     
+        Serial1.write(burrataButtonBuf, 8); 
+
+        // выключаем автоматический режим
+        autoModeFlag = 0;
+        autoModeButtonBuf[7] = 0x00;
+        Serial1.write(autoModeButtonBuf, 8);
+
+        straciatellaButtonFlag = 0;
+        straciatellaButtonCase = 0;
+         // отправляем значение кнопки на экран 
+        rotateDiskButtonBuf[7] = 0x00;                     
+        Serial1.write(rotateDiskButtonBuf, 8); 
+
+        rotateDiskButtonFlag = 0;
+        rotateDiskButtonCase = 0;
+         // отправляем значение кнопки на экран 
+        strachiatellaButtonBuf[7] = 0x00;                     
+        Serial1.write(strachiatellaButtonBuf, 8); 
+
+        // обнуляем знаения флагов циклов
+        doCycle = 0;
+        numCycle = 0;
+
+        break;
+
+      case 3:
         //сделали всю работёнку по безопасности и просто крутимся, ничего не делаем
         break;
 
@@ -962,6 +1031,22 @@ void loop() {
     - Мойка/загрузка/разгрузка, хз что там сейчас.
     - Выставление круга, у нас есть потенциально еще 3 метки, придумать как выставлять максимально точно и быстро.
     - кнопки, моргания в разных режимах по разным действиям, например при стоп кнопке. Если до этого дойдет
+
+    - дописать включение подсветки кнопок и действий только после калибровки 
+    - написаьт действия по стоп кнопке
+    - придумать, что делать с ошибками - как их описывать
+    - функцию перехода в дефолтную позицию
+    - сделать в настройках возможность изменить autoModeDelay с экрана
+
+    - не работает отключение автоматического режима по нажатию кнопки "буррата"
+
+    - написать функцию, которая будет проверять состояние всех датчиков и цилиндров при включении
+    - добавить переменную длительности нахождения ножа в центре в настройки 
+    - добавить кнопку калибровки цилиндров в настройки
+    - убрать из  calibrateVolume() и проверить calibrButtonsBuf включение кнопок подсветки и перенести их в нужное место
+    - проверить mainButtonBuf во всём коде\
+    - калибровка объёма при отжатии стоп кнопки
+        // ПОПРОБОВАТЬ ИЗМЕНИТЬ БИТНОСТЬ ДАТЧИКА ДС18б20 И ОПРАШИВАТЬ ТЕМПЕРАТУРУ НЕ ЧЕРЕЗ 800, а 100 или 200
 
   */
 
